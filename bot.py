@@ -450,6 +450,11 @@ def price():
     p = get_price()
     return jsonify({"symbol": SYMBOL, "price": p})
 
+@app.route("/dashboard")
+def dashboard():
+    from flask import send_file
+    return send_file("dashboard.html")
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     log(f"Servidor iniciando en puerto {port}", "info")

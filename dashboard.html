@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SOL Grid Bot</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0e1a;color:#e2e8f0;font-family:'Segoe UI',sans-serif;padding:20px}
+h1{color:#00d4aa;font-size:20px;margin-bottom:20px}
+.card{background:#111827;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px;margin-bottom:16px}
+.card h2{font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.price{font-size:32px;font-weight:700;color:#f59e0b;font-family:monospace}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric{background:#1a2235;border-radius:8px;padding:10px}
+.metric .label{font-size:11px;color:#64748b;margin-bottom:4px}
+.metric .value{font-size:18px;font-weight:600;font-family:monospace}
+.green{color:#00d4aa} .amber{color:#f59e0b} .red{color:#ef4444} .purple{color:#a78bfa}
+button{padding:12px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;width:100%;margin-bottom:8px;transition:all .2s}
+.btn-analyze{background:#7c3aed;color:#fff}
+.btn-analyze:hover{background:#8b5cf6}
+.btn-start{background:#00d4aa;color:#000}
+.btn-start:hover{background:#00f0c4}
+.btn-stop{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
+.btn-stop:hover{background:rgba(239,68,68,0.25)}
+button:disabled{opacity:0.4;cursor:not-allowed}
+.log{height:200px;overflow-y:auto;background:#0a0e1a;border-radius:8px;padding:10px;font-family:monospace;font-size:12px}
+.log-entry{padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+.log-entry.success{color:#00d4aa}
+.log-entry.error{color:#ef4444}
+.log-entry.warn{color:#f59e0b}
+.log-entry.info{color:#94a3b8}
+.signal{padding:8px 12px;border-radius:8px;font-weight:700;font-size:13px;text-align:center;margin-bottom:10px}
+.signal.OPEN{background:rgba(0,212,170,0.15);color:#00d4aa;border:1px solid rgba(0,212,170,0.3)}
+.signal.WAIT{background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)}
+.signal.AVOID{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
+input{width:100%;background:#1a2235;border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;padding:8px 10px;border-radius:6px;font-family:monospace;font-size:13px;margin-bottom:8px}
+label{font-size:12px;color:#94a3b8;display:block;margin-bottom:4px}
+.url-info{font-size:11px;color:#64748b;margin-bottom:16px;word-break:break-all}
+</style>
+</head>
+<body>
+
+<h1>⚡ SOL/USDC Grid Bot</h1>
+
+<div class="card">
+  <div class="url-info">Bot URL: <span id="bot-url"></span></div>
+  <div class="price" id="price">$---</div>
+  <div style="font-size:12px;color:#64748b;margin-top:4px">SOL/USDC • actualiza cada 10s</div>
+</div>
+
+<div class="card">
+  <h2>Estado</h2>
+  <div class="grid">
+    <div class="metric"><div class="label">BOT</div><div class="value" id="status">⏸ Detenido</div></div>
+    <div class="metric"><div class="label">PNL SESIÓN</div><div class="value green" id="pnl">$0.00</div></div>
+    <div class="metric"><div class="label">ÓRDENES</div><div class="value" id="orders">0</div></div>
+    <div class="metric"><div class="label">LLENADAS</div><div class="value amber" id="filled">0</div></div>
+  </div>
+</div>
+
+<div class="card" id="analysis-card" style="display:none">
+  <h2>Análisis del Mercado</h2>
+  <div class="signal" id="signal-badge">---</div>
+  <div class="grid">
+    <div class="metric"><div class="label">RSI</div><div class="value" id="rsi">---</div></div>
+    <div class="metric"><div class="label">VOLATILIDAD</div><div class="value" id="vol">---</div></div>
+    <div class="metric"><div class="label">SOPORTE</div><div class="value green" id="support">---</div></div>
+    <div class="metric"><div class="label">RESISTENCIA</div><div class="value red" id="resistance">---</div></div>
+  </div>
+  <div style="margin-top:10px;font-size:12px;color:#94a3b8" id="signal-reason"></div>
+</div>
+
+<div class="card" id="params-card" style="display:none">
+  <h2>Parámetros del Grid</h2>
+  <div>
+    <label>Precio Mínimo</label>
+    <input type="number" id="price-min" step="0.01"/>
+    <label>Precio Máximo</label>
+    <input type="number" id="price-max" step="0.01"/>
+    <label>Número de Grillas</label>
+    <input type="number" id="grid-count" min="2" max="20"/>
+    <div class="metric" style="margin-bottom:8px">
+      <div class="label">Ganancia estimada/día</div>
+      <div class="value green" id="est-profit">---</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Controles</h2>
+  <button class="btn-analyze" id="btn-analyze" onclick="analyze()">🔍 ANALIZAR MERCADO</button>
+  <button class="btn-start" id="btn-start" onclick="startBot()" disabled>▶ INICIAR BOT</button>
+  <button class="btn-stop" id="btn-stop" onclick="stopBot()" style="display:none">■ DETENER BOT</button>
+</div>
+
+<div class="card">
+  <h2>Log</h2>
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+const BOT_URL = window.location.origin;
+document.getElementById('bot-url').textContent = BOT_URL;
+
+function addLog(msg, level='info'){
+  const c = document.getElementById('log');
+  const d = document.createElement('div');
+  d.className = 'log-entry ' + level;
+  d.textContent = new Date().toLocaleTimeString() + ' — ' + msg;
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+}
+
+async function fetchState(){
+  try{
+    const r = await fetch(BOT_URL + '/state');
+    const d = await r.json();
+    document.getElementById('price').textContent = d.sol_price ? '$' + d.sol_price.toFixed(2) : '$---';
+    document.getElementById('pnl').textContent = '$' + (d.pnl || 0).toFixed(4);
+    document.getElementById('orders').textContent = (d.orders || []).length;
+    document.getElementById('filled').textContent = (d.filled || []).length;
+    const running = d.running;
+    document.getElementById('status').textContent = running ? '🟢 Activo' : '⏸ Detenido';
+    document.getElementById('btn-start').style.display = running ? 'none' : 'block';
+    document.getElementById('btn-stop').style.display = running ? 'block' : 'none';
+
+    // Mostrar logs nuevos del servidor
+    if(d.log && d.log.length > 0){
+      const last = d.log[d.log.length-1];
+      const key = last.time + last.msg;
+      if(key !== window._lastLog){
+        window._lastLog = key;
+        d.log.slice(-3).forEach(l => addLog(l.msg, l.level));
+      }
+    }
+  }catch(e){ addLog('Error conectando al bot: ' + e.message, 'error'); }
+}
+
+async function analyze(){
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  btn.textContent = '⏳ Analizando...';
+  addLog('Iniciando análisis de mercado...', 'info');
+  try{
+    const r = await fetch(BOT_URL + '/analyze', {method:'POST'});
+    const d = await r.json();
+    if(d.error){ addLog('Error: ' + d.error, 'error'); return; }
+
+    document.getElementById('analysis-card').style.display = 'block';
+    document.getElementById('params-card').style.display = 'block';
+
+    const badge = document.getElementById('signal-badge');
+    badge.textContent = d.signal + ' — ' + d.signal_reason;
+    badge.className = 'signal ' + d.signal;
+
+    document.getElementById('rsi').textContent = d.rsi;
+    document.getElementById('vol').textContent = d.volatility + '%';
+    document.getElementById('support').textContent = '$' + d.support;
+    document.getElementById('resistance').textContent = '$' + d.resistance;
+    document.getElementById('signal-reason').textContent =
+      `Riesgo: ${d.risk_level} — ${d.risk_reason}`;
+
+    document.getElementById('price-min').value = d.price_min;
+    document.getElementById('price-max').value = d.price_max;
+    document.getElementById('grid-count').value = d.grid_count;
+    document.getElementById('est-profit').textContent =
+      '~$' + d.estimated_daily_profit_usdc + ' USDC/día';
+
+    document.getElementById('btn-start').disabled = d.signal === 'AVOID';
+    addLog(`Análisis: ${d.signal} | RSI:${d.rsi} | Vol:${d.volatility}% | Grillas:${d.grid_count}`, 'success');
+  }catch(e){ addLog('Error en análisis: ' + e.message, 'error'); }
+  finally{ btn.disabled = false; btn.textContent = '🔍 ANALIZAR MERCADO'; }
+}
+
+async function startBot(){
+  const btn = document.getElementById('btn-start');
+  btn.disabled = true;
+  btn.textContent = '⏳ Iniciando...';
+  try{
+    const body = {
+      price_min:  parseFloat(document.getElementById('price-min').value),
+      price_max:  parseFloat(document.getElementById('price-max').value),
+      grid_count: parseInt(document.getElementById('grid-count').value),
+    };
+    if(!body.price_min || !body.price_max || !body.grid_count){
+      addLog('Primero analiza el mercado', 'warn'); return;
+    }
+    const r = await fetch(BOT_URL + '/start', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if(d.error){ addLog('Error: ' + d.error, 'error'); return; }
+    addLog(`Bot iniciado con ${d.orders} órdenes`, 'success');
+  }catch(e){ addLog('Error iniciando bot: ' + e.message, 'error'); }
+  finally{ btn.disabled = false; btn.textContent = '▶ INICIAR BOT'; }
+}
+
+async function stopBot(){
+  if(!confirm('¿Detener el bot y cancelar todas las órdenes?')) return;
+  try{
+    const r = await fetch(BOT_URL + '/stop', {method:'POST'});
+    const d = await r.json();
+    addLog(`Bot detenido. PNL sesión: $${d.pnl_session}`, 'warn');
+  }catch(e){ addLog('Error deteniendo bot: ' + e.message, 'error'); }
+}
+
+fetchState();
+setInterval(fetchState, 10000);
+addLog('Dashboard conectado al bot', 'success');
+</script>
+</body>
+</html>
