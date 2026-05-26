@@ -455,6 +455,18 @@ def dashboard():
     from flask import send_file
     return send_file("dashboard.html")
 
+def price_updater():
+    """Actualiza el precio de SOL en background cada 15s"""
+    while True:
+        try:
+            get_price()
+        except:
+            pass
+        time.sleep(15)
+
+# Iniciar actualizador de precio en background al arrancar
+Thread(target=price_updater, daemon=True).start()
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     log(f"Servidor iniciando en puerto {port}", "info")
