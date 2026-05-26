@@ -72,7 +72,11 @@ def get_price():
     try:
         r = requests.get(f"{BASE_URL}/api/v3/ticker/price",
                          params={"symbol": SYMBOL}, timeout=5)
-        price = float(r.json()["price"])
+        data = r.json()
+        if "price" not in data:
+            log(f"Binance responde error: {data}", "error")
+            return state["sol_price"]
+        price = float(data["price"])
         state["sol_price"] = price
         return price
     except Exception as e:
