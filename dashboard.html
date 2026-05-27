@@ -168,6 +168,18 @@ button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
       <div class="hint">Precio de SOL cuando creaste el bot</div>
     </div>
   </div>
+  <div class="fields-row">
+    <div class="field">
+      <label>Take Profit configurado (opcional)</label>
+      <input type="number" id="active-tp" placeholder="ej: 90.00" step="0.01"/>
+      <div class="hint">Tu TP actual en Binance</div>
+    </div>
+    <div class="field">
+      <label>Stop Loss configurado (opcional)</label>
+      <input type="number" id="active-sl" placeholder="ej: 78.00" step="0.01"/>
+      <div class="hint">Tu SL actual en Binance</div>
+    </div>
+  </div>
   <button class="btn-check" onclick="checkActiveBot()">🔍 ANALIZAR BOT ACTIVO</button>
 </div>
 
@@ -234,11 +246,17 @@ button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
     <div style="background:var(--surface2);border-radius:var(--r);padding:12px;margin-bottom:10px">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">💰 Monto de inversión</div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px" id="inv-range-label">Rango recomendado: calculando...</div>
-      <div class="inv-range">
+      <div class="inv-range" style="align-items:center">
         <span style="font-size:11px;color:var(--text3)" id="inv-min-label">$20</span>
-        <input type="range" id="inv-slider" min="20" max="200" value="60" step="5" oninput="updateInvestment()"/>
+        <input type="range" id="inv-slider" min="20" max="200" value="60" step="5" oninput="updateInvestment()" style="flex:1;margin:0 10px"/>
         <span style="font-size:11px;color:var(--text3)" id="inv-max-label">$200</span>
-        <div class="inv-amount" id="inv-display">$60</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px">
+        <button onclick="changeInv(-10)" style="width:36px;height:36px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);font-size:16px;cursor:pointer;margin:0" title="-10">◀◀</button>
+        <button onclick="changeInv(-1)" style="width:36px;height:36px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);font-size:18px;cursor:pointer;margin:0" title="-1">◀</button>
+        <div class="inv-amount" id="inv-display" style="font-size:26px;min-width:90px;text-align:center">$60</div>
+        <button onclick="changeInv(1)" style="width:36px;height:36px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);font-size:18px;cursor:pointer;margin:0" title="+1">▶</button>
+        <button onclick="changeInv(10)" style="width:36px;height:36px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);font-size:18px;cursor:pointer;margin:0" title="+10">▶▶</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
         <div class="inv-result"><div class="ir-label">Capital/orden</div><div class="ir-value" id="ir-per-order">--</div></div>
@@ -289,6 +307,8 @@ function checkActiveBot(){
   const grids   = parseInt(document.getElementById('active-grids').value);
   const capital = parseFloat(document.getElementById('active-capital').value);
   const entry   = parseFloat(document.getElementById('active-entry').value);
+  const activeTp = parseFloat(document.getElementById('active-tp').value);
+  const activeSl = parseFloat(document.getElementById('active-sl').value);
   const priceEl = document.getElementById('price').textContent;
   const price   = parseFloat(priceEl.replace('$',''));
 
@@ -302,49 +322,85 @@ function checkActiveBot(){
   const container = document.getElementById('active-alert-container');
   section.classList.remove('hidden');
 
-  const pct        = (price - pMin) / (pMax - pMin) * 100;
-  const distBottom = ((price - pMin) / price * 100).toFixed(1);
-  const distTop    = ((pMax - price) / price * 100).toFixed(1);
-  const rangeTotal = ((pMax - pMin) / pMin * 100).toFixed(1);
+  const pct         = (price - pMin) / (pMax - pMin) * 100;
+  const distBottom  = ((price - pMin) / price * 100).toFixed(1);
+  const distTop     = ((pMax - price) / price * 100).toFixed(1);
+  const rangeTotal  = ((pMax - pMin) / pMin * 100).toFixed(1);
   const capPerOrder = capital ? (capital / grids).toFixed(2) : null;
-  const pnlPct     = entry ? ((price - entry) / entry * 100).toFixed(2) : null;
+  const pnlPct      = entry ? ((price - entry) / entry * 100).toFixed(2) : null;
 
-  let situacion, accion, icon, color, titulo, desc, badge;
+  // TP/SL proximity analysis
+  let tpSlAnalysis = '';
+  let tpSlRisk = 0; // 0=ok, 1=warn, 2=danger
+  if(activeSl && !isNaN(activeSl)){
+    const distToSl = ((price - activeSl) / price * 100).toFixed(1);
+    if(price <= activeSl){
+      tpSlAnalysis += `<br>🔴 <strong>Stop Loss ALCANZADO</strong> — el bot se habría detenido ya ($${activeSl}).`;
+      tpSlRisk = 2;
+    } else if(parseFloat(distToSl) < 3){
+      tpSlAnalysis += `<br>🚨 <strong>Stop Loss muy cercano</strong> — a solo ${distToSl}% del precio actual ($${activeSl}). Riesgo inminente de cierre forzado.`;
+      tpSlRisk = 2;
+    } else if(parseFloat(distToSl) < 6){
+      tpSlAnalysis += `<br>⚠️ <strong>Stop Loss a ${distToSl}%</strong> del precio actual ($${activeSl}). Mantén vigilancia.`;
+      tpSlRisk = 1;
+    } else {
+      tpSlAnalysis += `<br>✅ Stop Loss en $${activeSl} (a ${distToSl}% del precio). Con margen seguro.`;
+    }
+  }
+  if(activeTp && !isNaN(activeTp)){
+    const distToTp = ((activeTp - price) / price * 100).toFixed(1);
+    if(price >= activeTp){
+      tpSlAnalysis += `<br>🎯 <strong>Take Profit ALCANZADO</strong> — el bot cerró con ganancia ($${activeTp}).`;
+    } else if(parseFloat(distToTp) < 3){
+      tpSlAnalysis += `<br>🎯 <strong>Take Profit muy cercano</strong> — a solo ${distToTp}% ($${activeTp}). Pronto cerrará con ganancia.`;
+    } else {
+      tpSlAnalysis += `<br>📈 Take Profit en $${activeTp} (a ${distToTp}% del precio).`;
+    }
+  }
 
-  if(price < pMin){
+  let situacion, accion, icon, titulo, desc, badge, conclusion;
+
+  if(price < pMin || tpSlRisk === 2 && price < (activeSl||0)){
     situacion = 'rojo'; icon = '🚨'; accion = 'cerrar';
-    titulo = 'PRECIO FUERA DEL RANGO — por debajo del mínimo';
-    desc = `SOL ($${price.toFixed(2)}) está POR DEBAJO del precio mínimo del grid ($${pMin}). El bot ya no genera órdenes de venta. Solo compra sin poder vender. Riesgo de pérdida acumulada.`;
-    badge = 'ACCIÓN: Cerrar el bot y re-analizar';
+    titulo = 'PRECIO FUERA DEL RANGO — situación crítica';
+    desc = `SOL está en $${price.toFixed(2)}, por debajo del mínimo del grid ($${pMin}). El bot solo compra sin poder vender, acumulando pérdidas.`;
+    conclusion = `En palabras simples: tu bot está atrapado comprando SOL que no puede vender porque el precio bajó demasiado. Cada minuto que pasa sin cerrar puede aumentar la pérdida. Lo más prudente ahora es cerrar el bot, esperar que el mercado se estabilice y re-abrirlo con nuevos parámetros.`;
+    badge = 'ACCIÓN URGENTE: Cerrar el bot ahora';
   } else if(price > pMax){
     situacion = 'amarillo'; icon = '⚠️'; accion = 'ajustar';
-    titulo = 'PRECIO FUERA DEL RANGO — por encima del máximo';
-    desc = `SOL ($${price.toFixed(2)}) superó el precio máximo del grid ($${pMax}). El bot dejó de generar órdenes de compra. Considera ampliar el rango hacia arriba o cerrar y re-crear.`;
-    badge = 'ACCIÓN: Ajustar rango o cerrar';
-  } else if(pct < 12){
+    titulo = 'Precio por encima del rango máximo';
+    desc = `SOL ($${price.toFixed(2)}) superó el máximo del grid ($${pMax}). El bot dejó de comprar.`;
+    conclusion = `En palabras simples: el precio subió más de lo que esperabas cuando creaste el bot. Esto en realidad es buena noticia porque el SOL que compraste vale más. Puedes cerrar el bot, tomar esa ganancia y re-abrirlo con un rango más alto, o simplemente dejarlo hasta que el precio baje y vuelva a operar.`;
+    badge = 'ACCIÓN: Cerrar con ganancia o ajustar rango';
+  } else if(pct < 12 || tpSlRisk === 2){
     situacion = 'rojo'; icon = '🚨'; accion = 'cerrar';
-    titulo = 'Peligro — Precio muy cerca del límite inferior';
-    desc = `El precio está a solo ${distBottom}% del mínimo ($${pMin}). Con esta tendencia podría salir del rango pronto. Para preservar capital considera cerrar el bot ahora.`;
-    badge = 'ACCIÓN: Cerrar y re-analizar';
+    titulo = 'Peligro — muy cerca del límite inferior';
+    desc = `El precio está a solo ${distBottom}% del mínimo del grid ($${pMin}).${tpSlAnalysis}`;
+    conclusion = `En palabras simples: el precio está peligrosamente cerca del borde inferior de tu grid. Si sigue bajando un poco más, tu Stop Loss se activará y el bot cerrará automáticamente con pérdida. Para proteger tu capital, considera cerrar el bot tú mismo ahora y re-analizar cuando el mercado se calme, en lugar de esperar a que el SL te cierre.`;
+    badge = 'ACCIÓN: Cerrar y re-analizar para proteger capital';
   } else if(pct < 25){
     situacion = 'naranja'; icon = '⚠️'; accion = 'ajustar';
-    titulo = 'Atención — Precio acercándose al límite inferior';
-    desc = `El precio está a ${distBottom}% del mínimo ($${pMin}). Monitorea de cerca. Si sigue bajando, considera cerrar el bot antes de que toque el Stop Loss.`;
-    badge = 'ACCIÓN: Vigilar de cerca / Preparar cierre';
+    titulo = 'Atención — precio acercándose al límite inferior';
+    desc = `El precio está a ${distBottom}% del mínimo ($${pMin}). Aún hay margen, pero la tendencia es hacia abajo.${tpSlAnalysis}`;
+    conclusion = `En palabras simples: tu bot todavía funciona pero el precio está bajando y se acerca al límite. No es emergencia todavía, pero conviene que lo revises cada hora. Si el precio sigue bajando sin rebote, lo más seguro es cerrar el bot antes de que llegue al Stop Loss y pierdas más.`;
+    badge = 'ACCIÓN: Vigilar cada hora — preparar cierre';
   } else if(pct > 88){
     situacion = 'amarillo'; icon = '⚠️'; accion = 'vigilar';
     titulo = 'Precio cerca del límite superior';
-    desc = `El precio está a ${distTop}% del máximo ($${pMax}). El bot deja de generar órdenes de compra si sigue subiendo. Puedes dejarlo correr o ampliar el rango.`;
-    badge = 'ACCIÓN: Vigilar / Ampliar rango si sigue subiendo';
+    desc = `El precio está a ${distTop}% del máximo ($${pMax}).${tpSlAnalysis}`;
+    conclusion = `En palabras simples: el precio subió bastante y se acerca al techo de tu grid. Esto significa que pronto el bot dejará de generar órdenes de compra. Si el precio sigue subiendo y supera el máximo, el bot se queda "congelado". Puedes dejarlo así (igual protege tus ganancias con el TP) o cerrar y re-abrir con un rango más alto.`;
+    badge = 'ACCIÓN: Vigilar — considerar ampliar rango';
   } else if(pct >= 35 && pct <= 65){
     situacion = 'verde'; icon = '✅'; accion = 'mantener';
-    titulo = 'Grid en zona óptima';
-    desc = `El precio está en el ${pct.toFixed(0)}% del rango (centro del grid). Condiciones ideales. El bot opera con máxima eficiencia generando compras y ventas.`;
+    titulo = 'Grid en zona óptima — operando perfectamente';
+    desc = `El precio está en el ${pct.toFixed(0)}% del rango, justo en el centro del grid.${tpSlAnalysis}`;
+    conclusion = `En palabras simples: tu bot está en su mejor momento. El precio está justo en el centro del rango que configuraste, lo que significa que el bot está generando tanto órdenes de compra como de venta activamente. No hay nada que cambiar, déjalo trabajar.`;
     badge = 'ACCIÓN: Mantener — no tocar';
   } else {
     situacion = 'verde'; icon = '👍'; accion = 'mantener';
     titulo = 'Grid funcionando con normalidad';
-    desc = `El precio está en el ${pct.toFixed(0)}% del rango. Operando correctamente. Distancia al mínimo: ${distBottom}%, al máximo: ${distTop}%.`;
+    desc = `El precio está en el ${pct.toFixed(0)}% del rango. Distancia al mínimo: ${distBottom}%, al máximo: ${distTop}%.${tpSlAnalysis}`;
+    conclusion = `En palabras simples: tu bot está funcionando bien. El precio está dentro del rango que configuraste y hay suficiente espacio tanto arriba como abajo para que siga operando. Puedes dejarlo correr tranquilamente.`;
     badge = 'ACCIÓN: Mantener';
   }
 
@@ -354,7 +410,7 @@ function checkActiveBot(){
   let extraInfo = '';
   if(capPerOrder) extraInfo += `<br>Capital por orden: <strong>$${capPerOrder}</strong>`;
   if(pnlPct) extraInfo += ` · PnL desde entrada: <strong style="color:${parseFloat(pnlPct)>=0?'var(--accent)':'var(--danger)'}">${parseFloat(pnlPct)>=0?'+':''}${pnlPct}%</strong>`;
-  extraInfo += `<br>Rango total del grid: <strong>${rangeTotal}%</strong> | Precio en el grid: <strong>${pct.toFixed(0)}%</strong>`;
+  extraInfo += `<br>Rango total: <strong>${rangeTotal}%</strong> · Precio en el grid: <strong>${pct.toFixed(0)}%</strong>`;
 
   container.innerHTML = `
     <div class="alert-situacion ${situacion}">
@@ -363,11 +419,14 @@ function checkActiveBot(){
         <div class="a-tag">Situación del bot</div>
         <div class="a-title">${titulo}</div>
         <div class="a-desc">${desc}${extraInfo}</div>
-        <div class="accion-badge ${accionClass}">${accionEmoji} ${badge}</div>
+        <div style="margin-top:10px;padding:10px;background:rgba(0,0,0,0.2);border-radius:6px;font-size:12px;color:var(--text2);line-height:1.6">
+          <strong style="color:var(--text);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">💬 Conclusión</strong><br>${conclusion}
+        </div>
+        <div class="accion-badge ${accionClass}" style="margin-top:8px">${accionEmoji} ${badge}</div>
       </div>
     </div>`;
 
-  addLog(`Bot analizado: ${titulo.substring(0,50)}... → ${badge}`, pct < 25 || price < pMin ? 'warn' : 'success');
+  addLog(`Bot analizado → ${badge}`, pct < 25 || price < pMin ? 'warn' : 'success');
 }
 
 function updateActiveBotAlerts(price){
@@ -460,6 +519,15 @@ function renderAnalysis(d){
     <span style="color:var(--text)">Grids:</span> ${d.grid_count} &nbsp;|&nbsp;
     <span style="color:var(--text)">Modo:</span> ${d.grid_mode==='geometrico'?'Geométrico':'Aritmético'}<br>
     Sección Avanzado → <span style="color:var(--accent)">TP: $${d.tp}</span> &nbsp;|&nbsp; <span style="color:var(--danger)">SL: $${d.sl}</span> &nbsp;|&nbsp; ✅ Vender todas las SOL en stop`;
+}
+
+function changeInv(delta){
+  const slider = document.getElementById('inv-slider');
+  const min = parseInt(slider.min);
+  const max = parseInt(slider.max);
+  const val = Math.min(max, Math.max(min, parseInt(slider.value) + delta));
+  slider.value = val;
+  updateInvestment();
 }
 
 function updateInvestment(){
