@@ -8,38 +8,58 @@
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--surface3:#1e2a3a;
-  --accent:#00d4aa;--purple:#7c3aed;--amber:#f59e0b;--danger:#ef4444;
+  --accent:#00d4aa;--purple:#7c3aed;--amber:#f59e0b;--danger:#ef4444;--blue:#3b82f6;
   --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
   --border:rgba(255,255,255,0.07);--r:8px;
 }
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:14px;padding:16px;max-width:900px;margin:0 auto}
-h1{color:var(--accent);font-size:18px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:14px;padding:16px;max-width:920px;margin:0 auto}
+h1{color:var(--accent);font-size:18px;margin-bottom:2px;display:flex;align-items:center;gap:8px}
 .subtitle{color:var(--text3);font-size:12px;margin-bottom:16px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
-.card-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:600}
-.price-big{font-size:38px;font-weight:700;color:var(--amber);font-family:monospace;line-height:1}
-.price-sub{font-size:12px;color:var(--text3);margin-top:4px}
+.card-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+.price-big{font-size:36px;font-weight:700;color:var(--amber);font-family:monospace;line-height:1}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .metric{background:var(--surface2);border-radius:var(--r);padding:10px 12px}
 .metric .lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
 .metric .val{font-size:17px;font-weight:600;font-family:monospace}
-.green{color:var(--accent)} .amber{color:var(--amber)} .red{color:var(--danger)} .purple{color:#a78bfa} .white{color:var(--text)}
+.green{color:var(--accent)} .amber{color:var(--amber)} .red{color:var(--danger)} .purple{color:#a78bfa} .blue{color:var(--blue)} .white{color:var(--text)}
 
-/* Señal principal */
-.signal-box{border-radius:var(--r);padding:12px 16px;font-weight:700;font-size:14px;text-align:center;margin-bottom:12px;border:1px solid}
+/* Inputs */
+.field{margin-bottom:10px}
+.field label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px}
+.field input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:var(--r);font-family:monospace;font-size:13px;outline:none;transition:border .2s}
+.field input:focus{border-color:rgba(0,212,170,0.4)}
+.field .hint{font-size:11px;color:var(--text3);margin-top:4px}
+.fields-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fields-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* Señal */
+.signal-box{border-radius:var(--r);padding:10px 14px;font-weight:700;font-size:13px;text-align:center;margin-bottom:12px;border:1px solid}
 .signal-box.OPEN{background:rgba(0,212,170,0.1);color:var(--accent);border-color:rgba(0,212,170,0.3)}
 .signal-box.WAIT{background:rgba(245,158,11,0.1);color:var(--amber);border-color:rgba(245,158,11,0.3)}
 .signal-box.AVOID{background:rgba(239,68,68,0.1);color:var(--danger);border-color:rgba(239,68,68,0.3)}
 
-/* Alertas */
-.alert{border-radius:var(--r);padding:10px 14px;margin-bottom:8px;font-size:13px;display:flex;align-items:flex-start;gap:10px;border:1px solid}
-.alert.green{background:rgba(0,212,170,0.07);border-color:rgba(0,212,170,0.2);color:var(--accent)}
-.alert.yellow{background:rgba(245,158,11,0.07);border-color:rgba(245,158,11,0.2);color:var(--amber)}
-.alert.red{background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:var(--danger)}
-.alert-icon{font-size:16px;margin-top:1px}
-.alert-text strong{display:block;margin-bottom:2px}
-.alert-text span{font-size:12px;opacity:0.8}
+/* Alertas de situación y acción */
+.alert-situacion{border-radius:var(--r);padding:12px 14px;margin-bottom:10px;border-left:3px solid;display:flex;gap:12px;align-items:flex-start}
+.alert-situacion.verde{background:rgba(0,212,170,0.07);border-left-color:var(--accent)}
+.alert-situacion.amarillo{background:rgba(245,158,11,0.07);border-left-color:var(--amber)}
+.alert-situacion.naranja{background:rgba(251,146,60,0.1);border-left-color:#fb923c}
+.alert-situacion.rojo{background:rgba(239,68,68,0.1);border-left-color:var(--danger)}
+.alert-icon{font-size:20px;line-height:1}
+.alert-body{}
+.alert-body .a-tag{font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:3px}
+.alert-situacion.verde .a-tag{color:var(--accent)}
+.alert-situacion.amarillo .a-tag{color:var(--amber)}
+.alert-situacion.naranja .a-tag{color:#fb923c}
+.alert-situacion.rojo .a-tag{color:var(--danger)}
+.alert-body .a-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.alert-body .a-desc{font-size:12px;color:var(--text2);line-height:1.5}
+.accion-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-top:6px}
+.accion-badge.mantener{background:rgba(0,212,170,0.15);color:var(--accent);border:1px solid rgba(0,212,170,0.3)}
+.accion-badge.vigilar{background:rgba(245,158,11,0.15);color:var(--amber);border:1px solid rgba(245,158,11,0.3)}
+.accion-badge.ajustar{background:rgba(251,146,60,0.15);color:#fb923c;border:1px solid rgba(251,146,60,0.3)}
+.accion-badge.cerrar{background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3)}
 
 /* Parámetros Binance */
 .params-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
@@ -47,97 +67,124 @@ h1{color:var(--accent);font-size:18px;margin-bottom:4px;display:flex;align-items
 .param-item .p-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
 .param-item .p-value{font-size:20px;font-weight:700;font-family:monospace;color:var(--text)}
 .param-item .p-sub{font-size:11px;color:var(--text3);margin-top:2px}
-.param-item.highlight{border:1px solid rgba(0,212,170,0.3)}
-.copy-btn{background:var(--surface3);border:1px solid var(--border);color:var(--text2);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-family:monospace;transition:all .2s}
-.copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+.param-item.highlight{border:1px solid rgba(0,212,170,0.25)}
 .mode-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;font-family:monospace}
 .mode-badge.aritmetico{background:rgba(0,212,170,0.15);color:var(--accent)}
 .mode-badge.geometrico{background:rgba(124,58,237,0.15);color:#a78bfa}
 
-/* Indicadores */
-.ind-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
-.ind-row:last-child{border-bottom:none}
-.ind-name{font-size:12px;color:var(--text2);font-weight:500}
-.ind-value{font-family:monospace;font-size:13px;font-weight:600}
-.ind-bar{flex:1;margin:0 12px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
-.ind-bar-fill{height:100%;border-radius:2px;transition:width .5s}
-
-/* Botones */
-button{padding:11px 16px;border:none;border-radius:var(--r);cursor:pointer;font-weight:700;font-size:13px;width:100%;margin-bottom:8px;transition:all .2s;font-family:'Segoe UI',sans-serif}
-.btn-analyze{background:var(--purple);color:#fff}
-.btn-analyze:hover{background:#8b5cf6}
-.btn-analyze:disabled{opacity:0.4;cursor:not-allowed}
-.btn-refresh{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
-.btn-refresh:hover{border-color:var(--accent);color:var(--accent)}
-
-/* Log */
-.log{height:160px;overflow-y:auto;background:#070b14;border-radius:var(--r);padding:10px;font-family:monospace;font-size:11px}
-.log::-webkit-scrollbar{width:3px}
-.log::-webkit-scrollbar-thumb{background:var(--text3);border-radius:2px}
-.le{padding:2px 0;display:flex;gap:8px}
-.le.success .lm{color:var(--accent)}
-.le.error .lm{color:var(--danger)}
-.le.warn .lm{color:var(--amber)}
-.le.info .lm{color:var(--text2)}
-.lt{color:var(--text3);min-width:65px}
-
-/* TP/SL display */
-.tpsl-row{display:flex;gap:10px;margin-top:10px}
+/* TP/SL */
+.tpsl-row{display:flex;gap:10px;margin-bottom:12px}
 .tpsl-item{flex:1;border-radius:var(--r);padding:10px;text-align:center}
 .tpsl-item.tp{background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.2)}
 .tpsl-item.sl{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2)}
 .tpsl-item .tl{font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
-.tpsl-item.tp .tl{color:var(--accent)}
-.tpsl-item.sl .tl{color:var(--danger)}
-.tpsl-item .tv{font-size:18px;font-weight:700;font-family:monospace}
-.tpsl-item.tp .tv{color:var(--accent)}
-.tpsl-item.sl .tv{color:var(--danger)}
-.tpsl-item .ts{font-size:10px;color:var(--text3);margin-top:2px}
+.tpsl-item.tp .tl{color:var(--accent)} .tpsl-item.sl .tl{color:var(--danger)}
+.tpsl-item .tv{font-size:20px;font-weight:700;font-family:monospace}
+.tpsl-item.tp .tv{color:var(--accent)} .tpsl-item.sl .tv{color:var(--danger)}
+.tpsl-item .ts{font-size:11px;color:var(--text3);margin-top:2px}
 
-.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
-.dot.green{background:var(--accent);box-shadow:0 0 6px var(--accent)}
-.dot.amber{background:var(--amber)}
-.dot.red{background:var(--danger);animation:blink 1s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+/* Inversión slider */
+.inv-range{display:flex;align-items:center;gap:12px;margin:10px 0}
+.inv-range input[type=range]{flex:1;accent-color:var(--accent);height:4px}
+.inv-amount{font-size:22px;font-weight:700;font-family:monospace;color:var(--accent);min-width:80px;text-align:right}
+.inv-minmax{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:2px}
+.inv-result{background:var(--surface2);border-radius:var(--r);padding:10px 12px;margin-top:10px}
+.inv-result .ir-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+.inv-result .ir-value{font-size:18px;font-weight:700;font-family:monospace;color:var(--accent)}
 
-.section-divider{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 10px;display:flex;align-items:center;gap:8px}
-.section-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+/* Botones */
+button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-weight:700;font-size:13px;width:100%;margin-bottom:8px;transition:all .2s;font-family:'Segoe UI',sans-serif}
+.btn-analyze{background:var(--purple);color:#fff}
+.btn-analyze:hover{background:#8b5cf6}
+.btn-analyze:disabled{opacity:0.4;cursor:not-allowed}
+.btn-check{background:rgba(59,130,246,0.15);color:var(--blue);border:1px solid rgba(59,130,246,0.3)}
+.btn-check:hover{background:rgba(59,130,246,0.25)}
+.btn-refresh{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.btn-refresh:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{width:auto;padding:6px 12px;font-size:11px;margin:0}
 
-.last-update{font-size:11px;color:var(--text3);text-align:right;margin-top:6px}
+/* Log */
+.log{height:150px;overflow-y:auto;background:#070b14;border-radius:var(--r);padding:10px;font-family:monospace;font-size:11px}
+.log::-webkit-scrollbar{width:3px}
+.log::-webkit-scrollbar-thumb{background:var(--text3);border-radius:2px}
+.le{padding:2px 0;display:flex;gap:8px}
+.le.success .lm{color:var(--accent)} .le.error .lm{color:var(--danger)} .le.warn .lm{color:var(--amber)} .le.info .lm{color:var(--text2)}
+.lt{color:var(--text3);min-width:65px}
+
+.divider{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin:14px 0 10px;display:flex;align-items:center;gap:8px}
+.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.hidden{display:none}
+.bb-bar{position:relative;height:18px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:6px 0}
+.bb-bar-fill{position:absolute;top:0;bottom:0;background:rgba(0,212,170,0.12);border-radius:4px}
+.bb-bar-price{position:absolute;top:2px;bottom:2px;width:3px;background:var(--amber);border-radius:2px;transition:left .5s}
+.bb-labels{display:flex;justify-content:space-between;font-size:10px;font-family:monospace;color:var(--text3)}
 </style>
 </head>
 <body>
 
 <h1>⚡ SOL/USDC Grid Bot</h1>
-<div class="subtitle">Dashboard de análisis — parámetros para Binance Grid de Spot</div>
+<div class="subtitle">Análisis en tiempo real · Parámetros para Binance Grid de Spot</div>
 
-<!-- Precio -->
+<!-- Precio en tiempo real -->
 <div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+  <div style="display:flex;justify-content:space-between;align-items:center">
     <div>
       <div class="price-big" id="price">$---</div>
-      <div class="price-sub">SOL/USDC en tiempo real</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">SOL/USDC · actualiza cada 15s</div>
     </div>
     <div style="text-align:right">
-      <div style="font-size:12px;color:var(--text3)">Cambio 24h</div>
-      <div style="font-size:18px;font-weight:700;font-family:monospace" id="change24h">---</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:4px" id="last-update">--:--:--</div>
+      <div style="font-size:11px;color:var(--text3)">Actualizado</div>
+      <div style="font-family:monospace;font-size:13px;color:var(--text2)" id="last-update">--:--:--</div>
     </div>
   </div>
 </div>
 
-<!-- Alertas -->
-<div id="alerts-section" style="display:none">
-  <div class="section-divider">Estado del grid</div>
-  <div id="alerts-container"></div>
+<!-- BOT ACTIVO: ingresar parámetros -->
+<div class="divider">Bot activo en Binance</div>
+<div class="card">
+  <div class="card-title">📋 Ingresa los parámetros de tu bot actual para analizar su estado</div>
+  <div class="fields-row3">
+    <div class="field">
+      <label>Precio Mínimo activo</label>
+      <input type="number" id="active-min" placeholder="ej: 81.00" step="0.01"/>
+    </div>
+    <div class="field">
+      <label>Precio Máximo activo</label>
+      <input type="number" id="active-max" placeholder="ej: 87.00" step="0.01"/>
+    </div>
+    <div class="field">
+      <label>Cantidad de grids activos</label>
+      <input type="number" id="active-grids" placeholder="ej: 8" min="2"/>
+    </div>
+  </div>
+  <div class="fields-row">
+    <div class="field">
+      <label>Capital invertido (USDC)</label>
+      <input type="number" id="active-capital" placeholder="ej: 60" step="1"/>
+    </div>
+    <div class="field">
+      <label>Precio de entrada (cuando abriste)</label>
+      <input type="number" id="active-entry" placeholder="ej: 84.50" step="0.01"/>
+      <div class="hint">Precio de SOL cuando creaste el bot</div>
+    </div>
+  </div>
+  <button class="btn-check" onclick="checkActiveBot()">🔍 ANALIZAR BOT ACTIVO</button>
 </div>
 
-<!-- Señal y análisis -->
-<div id="analysis-section" style="display:none">
-  <div class="section-divider">Análisis de mercado</div>
-  <div class="card">
+<!-- Alerta del bot activo -->
+<div id="active-alert-section" class="hidden">
+  <div class="divider">Situación del bot activo</div>
+  <div id="active-alert-container"></div>
+</div>
+
+<!-- Análisis de mercado -->
+<div class="divider">Análisis de mercado</div>
+<div class="card">
+  <div class="card-title">📊 Indicadores técnicos en tiempo real</div>
+  <button class="btn-analyze" id="btn-analyze" onclick="analyze()">🔍 ANALIZAR MERCADO AHORA</button>
+  <div id="analysis-content" class="hidden">
     <div class="signal-box" id="signal-box">---</div>
-    <div class="grid3">
+    <div class="grid3" style="margin-bottom:10px">
       <div class="metric"><div class="lbl">RSI(14)</div><div class="val" id="i-rsi">--</div></div>
       <div class="metric"><div class="lbl">EMA 20</div><div class="val" id="i-ema20">--</div></div>
       <div class="metric"><div class="lbl">EMA 50</div><div class="val" id="i-ema50">--</div></div>
@@ -145,105 +192,80 @@ button{padding:11px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
       <div class="metric"><div class="lbl">ATR(14)</div><div class="val" id="i-atr">--</div></div>
       <div class="metric"><div class="lbl">Volatilidad</div><div class="val" id="i-vol">--</div></div>
     </div>
-
-    <!-- Bollinger Bands visual -->
-    <div style="margin-top:10px;background:var(--surface2);border-radius:var(--r);padding:10px">
-      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Bandas de Bollinger — posición del precio</div>
-      <div style="position:relative;height:20px;background:var(--surface);border-radius:4px;overflow:hidden">
-        <div id="bb-fill" style="position:absolute;top:0;bottom:0;background:rgba(0,212,170,0.15);border-radius:4px"></div>
-        <div id="bb-price" style="position:absolute;top:2px;bottom:2px;width:4px;background:var(--amber);border-radius:2px;transition:left .5s"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;font-family:monospace;color:var(--text3)">
-        <span id="bb-lower">--</span><span style="color:var(--text2)">Media: <span id="bb-mid">--</span></span><span id="bb-upper">--</span>
-      </div>
-    </div>
-
-    <div style="margin-top:8px;font-size:12px;color:var(--text2)" id="signal-detail"></div>
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Bandas de Bollinger</div>
+    <div class="bb-bar"><div class="bb-bar-fill" id="bb-fill"></div><div class="bb-bar-price" id="bb-price"></div></div>
+    <div class="bb-labels"><span id="bb-lower">--</span><span>Media: <span id="bb-mid">--</span></span><span id="bb-upper">--</span></div>
+    <div style="font-size:12px;color:var(--text2);margin-top:8px" id="signal-detail"></div>
   </div>
 </div>
 
-<!-- Parámetros para Binance -->
-<div id="params-section" style="display:none">
-  <div class="section-divider">Parámetros para Binance Grid de Spot</div>
+<!-- Parámetros para nuevo bot -->
+<div id="params-section" class="hidden">
+  <div class="divider">Parámetros recomendados para nuevo bot</div>
   <div class="card">
-
     <div class="params-grid">
       <div class="param-item highlight">
-        <div class="p-label">🔻 Precio Mínimo (Más bajo)</div>
+        <div class="p-label">🔻 Precio Mínimo</div>
         <div class="p-value green" id="p-min">--</div>
-        <div class="p-sub">Límite inferior del grid</div>
+        <div class="p-sub">Campo "Más bajo" en Binance</div>
       </div>
       <div class="param-item highlight">
-        <div class="p-label">🔺 Precio Máximo (Más alto)</div>
+        <div class="p-label">🔺 Precio Máximo</div>
         <div class="p-value red" id="p-max">--</div>
-        <div class="p-sub">Límite superior del grid</div>
+        <div class="p-sub">Campo "Más alto" en Binance</div>
       </div>
       <div class="param-item">
         <div class="p-label">⊞ Cantidad de Grids</div>
         <div class="p-value white" id="p-grids">--</div>
-        <div class="p-sub">Número de niveles</div>
+        <div class="p-sub">Campo "Cantidad de grids"</div>
       </div>
       <div class="param-item">
-        <div class="p-label">⚙ Modo recomendado</div>
+        <div class="p-label">⚙ Modo</div>
         <div class="p-value" id="p-mode">--</div>
         <div class="p-sub" id="p-mode-reason">--</div>
       </div>
-      <div class="param-item">
-        <div class="p-label">💰 Inversión</div>
-        <div class="p-value amber" id="p-capital">--</div>
-        <div class="p-sub">USDC a invertir</div>
-      </div>
-      <div class="param-item">
-        <div class="p-label">📈 Ganancia/grid est.</div>
-        <div class="p-value green" id="p-profit">--</div>
-        <div class="p-sub" id="p-daily">--</div>
-      </div>
     </div>
-
-    <!-- TP/SL -->
-    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">TP / SL recomendados (sección Avanzado)</div>
     <div class="tpsl-row">
-      <div class="tpsl-item tp">
-        <div class="tl">Take Profit</div>
-        <div class="tv" id="p-tp">--</div>
-        <div class="ts" id="p-tp-pct">--</div>
+      <div class="tpsl-item tp"><div class="tl">Take Profit</div><div class="tv" id="p-tp">--</div><div class="ts" id="p-tp-pct">--</div></div>
+      <div class="tpsl-item sl"><div class="tl">Stop Loss</div><div class="tv" id="p-sl">--</div><div class="ts" id="p-sl-pct">--</div></div>
+    </div>
+
+    <!-- Inversión con slider -->
+    <div style="background:var(--surface2);border-radius:var(--r);padding:12px;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">💰 Monto de inversión</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px" id="inv-range-label">Rango recomendado: calculando...</div>
+      <div class="inv-range">
+        <span style="font-size:11px;color:var(--text3)" id="inv-min-label">$20</span>
+        <input type="range" id="inv-slider" min="20" max="200" value="60" step="5" oninput="updateInvestment()"/>
+        <span style="font-size:11px;color:var(--text3)" id="inv-max-label">$200</span>
+        <div class="inv-amount" id="inv-display">$60</div>
       </div>
-      <div class="tpsl-item sl">
-        <div class="tl">Stop Loss</div>
-        <div class="tv" id="p-sl">--</div>
-        <div class="ts" id="p-sl-pct">--</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+        <div class="inv-result"><div class="ir-label">Capital/orden</div><div class="ir-value" id="ir-per-order">--</div></div>
+        <div class="inv-result"><div class="ir-label">Est. diario</div><div class="ir-value" id="ir-daily">--</div></div>
+        <div class="inv-result"><div class="ir-label">Est. mensual</div><div class="ir-value" id="ir-monthly">--</div></div>
       </div>
     </div>
 
-    <div style="margin-top:12px;background:var(--surface2);border-radius:var(--r);padding:10px;font-size:12px;color:var(--text2)" id="p-notes"></div>
+    <div style="background:var(--surface2);border-radius:var(--r);padding:10px;font-size:12px;color:var(--text2)" id="p-notes"></div>
   </div>
-</div>
-
-<!-- Controles -->
-<div class="card">
-  <div class="card-title">Controles</div>
-  <button class="btn-analyze" id="btn-analyze" onclick="analyze()">🔍 ANALIZAR MERCADO AHORA</button>
-  <button class="btn-refresh" onclick="fetchState()">↺ Actualizar precio</button>
 </div>
 
 <!-- Log -->
 <div class="card">
   <div class="card-title">Log</div>
   <div class="log" id="log"></div>
-  <div class="last-update" id="next-update">Próxima actualización: --</div>
 </div>
 
 <script>
 const BOT_URL = window.location.origin;
 let lastAnalysis = null;
-let countdown = 30;
 
 function addLog(msg, level='info'){
   const c = document.getElementById('log');
   const d = document.createElement('div');
   d.className = 'le ' + level;
-  const t = new Date().toLocaleTimeString();
-  d.innerHTML = `<span class="lt">${t}</span><span class="lm">${msg}</span>`;
+  d.innerHTML = `<span class="lt">${new Date().toLocaleTimeString()}</span><span class="lm">${msg}</span>`;
   c.appendChild(d);
   c.scrollTop = c.scrollHeight;
 }
@@ -255,159 +277,209 @@ async function fetchState(){
     if(d.sol_price){
       document.getElementById('price').textContent = '$' + d.sol_price.toFixed(2);
       document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
-      if(lastAnalysis) checkAlerts(d.sol_price, lastAnalysis);
+      if(lastAnalysis) updateActiveBotAlerts(d.sol_price);
     }
-  }catch(e){ addLog('Error conectando: ' + e.message, 'error'); }
+  }catch(e){}
 }
 
-function checkAlerts(price, a){
-  const container = document.getElementById('alerts-container');
-  const section = document.getElementById('alerts-section');
-  const alerts = [];
-  const pMin = a.price_min;
-  const pMax = a.price_max;
-  const pct = (price - pMin) / (pMax - pMin) * 100;
+// ── Analizar bot activo ────────────────────────────────────────
+function checkActiveBot(){
+  const pMin    = parseFloat(document.getElementById('active-min').value);
+  const pMax    = parseFloat(document.getElementById('active-max').value);
+  const grids   = parseInt(document.getElementById('active-grids').value);
+  const capital = parseFloat(document.getElementById('active-capital').value);
+  const entry   = parseFloat(document.getElementById('active-entry').value);
+  const priceEl = document.getElementById('price').textContent;
+  const price   = parseFloat(priceEl.replace('$',''));
+
+  if(!pMin || !pMax || !grids){
+    addLog('Ingresa al menos precio mínimo, máximo y grids del bot activo', 'warn');
+    return;
+  }
+  if(!price){ addLog('Esperando precio de SOL...', 'warn'); return; }
+
+  const section   = document.getElementById('active-alert-section');
+  const container = document.getElementById('active-alert-container');
+  section.classList.remove('hidden');
+
+  const pct        = (price - pMin) / (pMax - pMin) * 100;
   const distBottom = ((price - pMin) / price * 100).toFixed(1);
-  const distTop = ((pMax - price) / price * 100).toFixed(1);
+  const distTop    = ((pMax - price) / price * 100).toFixed(1);
+  const rangeTotal = ((pMax - pMin) / pMin * 100).toFixed(1);
+  const capPerOrder = capital ? (capital / grids).toFixed(2) : null;
+  const pnlPct     = entry ? ((price - entry) / entry * 100).toFixed(2) : null;
 
-  // Alerta SL cercano
-  if(pct < 10){
-    alerts.push({type:'red', icon:'🚨', title:'PELIGRO — Precio cerca del límite inferior',
-      text:`SOL está a solo ${distBottom}% del precio mínimo ($${pMin}). Considera detener el grid y re-analizar.`});
-  } else if(pct < 20){
-    alerts.push({type:'yellow', icon:'⚠️', title:'Atención — Precio acercándose al límite inferior',
-      text:`SOL está a ${distBottom}% del mínimo ($${pMin}). Monitorea de cerca.`});
+  let situacion, accion, icon, color, titulo, desc, badge;
+
+  if(price < pMin){
+    situacion = 'rojo'; icon = '🚨'; accion = 'cerrar';
+    titulo = 'PRECIO FUERA DEL RANGO — por debajo del mínimo';
+    desc = `SOL ($${price.toFixed(2)}) está POR DEBAJO del precio mínimo del grid ($${pMin}). El bot ya no genera órdenes de venta. Solo compra sin poder vender. Riesgo de pérdida acumulada.`;
+    badge = 'ACCIÓN: Cerrar el bot y re-analizar';
+  } else if(price > pMax){
+    situacion = 'amarillo'; icon = '⚠️'; accion = 'ajustar';
+    titulo = 'PRECIO FUERA DEL RANGO — por encima del máximo';
+    desc = `SOL ($${price.toFixed(2)}) superó el precio máximo del grid ($${pMax}). El bot dejó de generar órdenes de compra. Considera ampliar el rango hacia arriba o cerrar y re-crear.`;
+    badge = 'ACCIÓN: Ajustar rango o cerrar';
+  } else if(pct < 12){
+    situacion = 'rojo'; icon = '🚨'; accion = 'cerrar';
+    titulo = 'Peligro — Precio muy cerca del límite inferior';
+    desc = `El precio está a solo ${distBottom}% del mínimo ($${pMin}). Con esta tendencia podría salir del rango pronto. Para preservar capital considera cerrar el bot ahora.`;
+    badge = 'ACCIÓN: Cerrar y re-analizar';
+  } else if(pct < 25){
+    situacion = 'naranja'; icon = '⚠️'; accion = 'ajustar';
+    titulo = 'Atención — Precio acercándose al límite inferior';
+    desc = `El precio está a ${distBottom}% del mínimo ($${pMin}). Monitorea de cerca. Si sigue bajando, considera cerrar el bot antes de que toque el Stop Loss.`;
+    badge = 'ACCIÓN: Vigilar de cerca / Preparar cierre';
+  } else if(pct > 88){
+    situacion = 'amarillo'; icon = '⚠️'; accion = 'vigilar';
+    titulo = 'Precio cerca del límite superior';
+    desc = `El precio está a ${distTop}% del máximo ($${pMax}). El bot deja de generar órdenes de compra si sigue subiendo. Puedes dejarlo correr o ampliar el rango.`;
+    badge = 'ACCIÓN: Vigilar / Ampliar rango si sigue subiendo';
+  } else if(pct >= 35 && pct <= 65){
+    situacion = 'verde'; icon = '✅'; accion = 'mantener';
+    titulo = 'Grid en zona óptima';
+    desc = `El precio está en el ${pct.toFixed(0)}% del rango (centro del grid). Condiciones ideales. El bot opera con máxima eficiencia generando compras y ventas.`;
+    badge = 'ACCIÓN: Mantener — no tocar';
+  } else {
+    situacion = 'verde'; icon = '👍'; accion = 'mantener';
+    titulo = 'Grid funcionando con normalidad';
+    desc = `El precio está en el ${pct.toFixed(0)}% del rango. Operando correctamente. Distancia al mínimo: ${distBottom}%, al máximo: ${distTop}%.`;
+    badge = 'ACCIÓN: Mantener';
   }
 
-  // Alerta TP cercano
-  if(pct > 90){
-    alerts.push({type:'yellow', icon:'⚠️', title:'Precio cerca del límite superior',
-      text:`SOL está a ${distTop}% del máximo ($${pMax}). El grid puede dejar de generar órdenes de compra pronto.`});
-  }
+  const accionClass = {cerrar:'cerrar', ajustar:'ajustar', vigilar:'vigilar', mantener:'mantener'}[accion];
+  const accionEmoji = {cerrar:'🔴', ajustar:'🟠', vigilar:'🟡', mantener:'🟢'}[accion];
 
-  // RSI extremo
-  if(a.rsi > 72){
-    alerts.push({type:'yellow', icon:'📊', title:'RSI sobrecomprado',
-      text:`RSI en ${a.rsi} — posible corrección próxima. Evalúa si cerrar el grid.`});
-  } else if(a.rsi < 28){
-    alerts.push({type:'red', icon:'📊', title:'RSI sobrevendido — caída fuerte',
-      text:`RSI en ${a.rsi} — mercado en caída. Alto riesgo de que el precio toque el SL.`});
-  }
+  let extraInfo = '';
+  if(capPerOrder) extraInfo += `<br>Capital por orden: <strong>$${capPerOrder}</strong>`;
+  if(pnlPct) extraInfo += ` · PnL desde entrada: <strong style="color:${parseFloat(pnlPct)>=0?'var(--accent)':'var(--danger)'}">${parseFloat(pnlPct)>=0?'+':''}${pnlPct}%</strong>`;
+  extraInfo += `<br>Rango total del grid: <strong>${rangeTotal}%</strong> | Precio en el grid: <strong>${pct.toFixed(0)}%</strong>`;
 
-  // Condición sana
-  if(alerts.length === 0 && pct >= 20 && pct <= 80){
-    alerts.push({type:'green', icon:'✅', title:'Grid en zona óptima',
-      text:`El precio está en el ${pct.toFixed(0)}% del rango. Condiciones normales, el bot opera correctamente.`});
-  }
+  container.innerHTML = `
+    <div class="alert-situacion ${situacion}">
+      <div class="alert-icon">${icon}</div>
+      <div class="alert-body">
+        <div class="a-tag">Situación del bot</div>
+        <div class="a-title">${titulo}</div>
+        <div class="a-desc">${desc}${extraInfo}</div>
+        <div class="accion-badge ${accionClass}">${accionEmoji} ${badge}</div>
+      </div>
+    </div>`;
 
-  section.style.display = 'block';
-  container.innerHTML = alerts.map(al => `
-    <div class="alert ${al.type}">
-      <span class="alert-icon">${al.icon}</span>
-      <div class="alert-text"><strong>${al.title}</strong><span>${al.text}</span></div>
-    </div>`).join('');
+  addLog(`Bot analizado: ${titulo.substring(0,50)}... → ${badge}`, pct < 25 || price < pMin ? 'warn' : 'success');
 }
 
+function updateActiveBotAlerts(price){
+  const pMin = parseFloat(document.getElementById('active-min').value);
+  const pMax = parseFloat(document.getElementById('active-max').value);
+  if(pMin && pMax) checkActiveBot();
+}
+
+// ── Analizar mercado ───────────────────────────────────────────
 async function analyze(){
   const btn = document.getElementById('btn-analyze');
   btn.disabled = true;
-  btn.textContent = '⏳ Analizando mercado...';
-  addLog('Iniciando análisis completo...', 'info');
-
+  btn.textContent = '⏳ Analizando indicadores...';
+  addLog('Analizando mercado con RSI, EMA, MACD, ATR, Bollinger...', 'info');
   try{
     const r = await fetch(BOT_URL + '/analyze', {method:'POST'});
     const d = await r.json();
     if(d.error){ addLog('Error: ' + d.error, 'error'); return; }
     lastAnalysis = d;
     renderAnalysis(d);
-    addLog(`✓ Señal: ${d.signal} | RSI: ${d.rsi} | Vol: ${d.volatility}% | ATR: $${d.atr}`, 'success');
+    addLog(`✓ Señal: ${d.signal} | RSI:${d.rsi} | MACD:${d.macd_signal} | ATR:$${d.atr} | Vol:${d.volatility}%`, 'success');
   }catch(e){ addLog('Error: ' + e.message, 'error'); }
   finally{ btn.disabled = false; btn.textContent = '🔍 ANALIZAR MERCADO AHORA'; }
 }
 
 function renderAnalysis(d){
-  // Señal
+  document.getElementById('analysis-content').classList.remove('hidden');
+  document.getElementById('params-section').classList.remove('hidden');
+
   const sb = document.getElementById('signal-box');
   sb.className = 'signal-box ' + d.signal;
-  const signalEmoji = {OPEN:'🟢', WAIT:'🟡', AVOID:'🔴'}[d.signal] || '';
-  sb.textContent = signalEmoji + ' ' + d.signal + ' — ' + d.signal_reason;
+  sb.textContent = {OPEN:'🟢',WAIT:'🟡',AVOID:'🔴'}[d.signal] + ' ' + d.signal + ' — ' + d.signal_reason;
 
-  // Indicadores
-  document.getElementById('i-rsi').textContent = d.rsi;
-  document.getElementById('i-rsi').className = 'val ' + (d.rsi > 65 ? 'red' : d.rsi < 35 ? 'amber' : 'green');
-  document.getElementById('i-ema20').textContent = '$' + (d.ema20 || '--');
-  document.getElementById('i-ema50').textContent = '$' + (d.ema50 || '--');
-  document.getElementById('i-macd').textContent = d.macd_signal || '--';
-  document.getElementById('i-macd').className = 'val ' + (d.macd_bull ? 'green' : 'red');
-  document.getElementById('i-atr').textContent = '$' + (d.atr || '--');
-  document.getElementById('i-vol').textContent = d.volatility + '%';
-  document.getElementById('i-vol').className = 'val ' + (d.volatility > 10 ? 'red' : d.volatility > 5 ? 'amber' : 'green');
+  document.getElementById('i-rsi').textContent  = d.rsi;
+  document.getElementById('i-rsi').className    = 'val ' + (d.rsi>65?'red':d.rsi<35?'amber':'green');
+  document.getElementById('i-ema20').textContent = '$'+d.ema20;
+  document.getElementById('i-ema50').textContent = '$'+d.ema50;
+  document.getElementById('i-macd').textContent  = d.macd_signal;
+  document.getElementById('i-macd').className    = 'val '+(d.macd_bull?'green':'red');
+  document.getElementById('i-atr').textContent   = '$'+d.atr;
+  document.getElementById('i-vol').textContent   = d.volatility+'%';
+  document.getElementById('i-vol').className     = 'val '+(d.volatility>10?'red':d.volatility>5?'amber':'green');
 
-  // Bollinger Bands
-  if(d.bb_lower && d.bb_upper && d.current_price){
-    const bbRange = d.bb_upper - d.bb_lower;
-    const pricePos = Math.max(0, Math.min(100, (d.current_price - d.bb_lower) / bbRange * 100));
-    document.getElementById('bb-price').style.left = pricePos + '%';
-    document.getElementById('bb-lower').textContent = '$' + d.bb_lower.toFixed(2);
-    document.getElementById('bb-mid').textContent = '$' + d.bb_mid.toFixed(2);
-    document.getElementById('bb-upper').textContent = '$' + d.bb_upper.toFixed(2);
+  if(d.bb_lower && d.bb_upper){
+    const range = d.bb_upper - d.bb_lower;
+    const pos   = Math.max(2, Math.min(96, (d.current_price - d.bb_lower) / range * 100));
+    document.getElementById('bb-price').style.left = pos+'%';
+    document.getElementById('bb-lower').textContent = '$'+d.bb_lower;
+    document.getElementById('bb-mid').textContent   = '$'+d.bb_mid;
+    document.getElementById('bb-upper').textContent = '$'+d.bb_upper;
   }
 
   document.getElementById('signal-detail').textContent =
-    `Tendencia: ${d.trend} | Soporte: $${d.support} | Resistencia: $${d.resistance} | ${d.risk_reason}`;
+    `Tendencia: ${d.trend} · Soporte: $${d.support} · Resistencia: $${d.resistance} · Riesgo: ${d.risk_level} — ${d.risk_reason}`;
 
-  // Parámetros Binance
-  document.getElementById('p-min').textContent = '$' + d.price_min;
-  document.getElementById('p-max').textContent = '$' + d.price_max;
+  document.getElementById('p-min').textContent   = '$'+d.price_min;
+  document.getElementById('p-max').textContent   = '$'+d.price_max;
   document.getElementById('p-grids').textContent = d.grid_count;
-  document.getElementById('p-capital').textContent = '$60 USDC';
-  document.getElementById('p-profit').textContent = d.profit_per_grid_pct + '% / grid';
-  document.getElementById('p-daily').textContent = '~$' + d.estimated_daily_profit_usdc + ' USDC/día estimado';
+  document.getElementById('p-tp').textContent    = '$'+d.tp;
+  document.getElementById('p-sl').textContent    = '$'+d.sl;
 
-  // Modo aritmético vs geométrico
+  const tpPct = ((d.tp - d.current_price)/d.current_price*100).toFixed(1);
+  const slPct = ((d.current_price - d.sl)/d.current_price*100).toFixed(1);
+  document.getElementById('p-tp-pct').textContent = '+'+tpPct+'% desde precio actual';
+  document.getElementById('p-sl-pct').textContent = '-'+slPct+'% desde precio actual';
+
   const modeEl = document.getElementById('p-mode');
-  const modeReason = document.getElementById('p-mode-reason');
-  if(d.grid_mode === 'geometrico'){
-    modeEl.innerHTML = '<span class="mode-badge geometrico">GEOMÉTRICO</span>';
-    modeReason.textContent = 'Mejor para rangos amplios (+15%)';
-  } else {
-    modeEl.innerHTML = '<span class="mode-badge aritmetico">ARITMÉTICO</span>';
-    modeReason.textContent = 'Mejor para rangos estrechos';
-  }
+  modeEl.innerHTML = d.grid_mode === 'geometrico'
+    ? '<span class="mode-badge geometrico">GEOMÉTRICO</span>'
+    : '<span class="mode-badge aritmetico">ARITMÉTICO</span>';
+  document.getElementById('p-mode-reason').textContent =
+    d.grid_mode === 'geometrico' ? 'Rango amplio >15%' : 'Rango estrecho <15%';
 
-  // TP / SL
-  if(d.tp && d.sl){
-    document.getElementById('p-tp').textContent = '$' + d.tp;
-    document.getElementById('p-sl').textContent = '$' + d.sl;
-    const tpPct = ((d.tp - d.current_price) / d.current_price * 100).toFixed(1);
-    const slPct = ((d.current_price - d.sl) / d.current_price * 100).toFixed(1);
-    document.getElementById('p-tp-pct').textContent = '+' + tpPct + '% desde precio actual';
-    document.getElementById('p-sl-pct').textContent = '-' + slPct + '% desde precio actual';
-  }
+  // Rango de inversión recomendado
+  const minInv = Math.max(20, Math.round(d.grid_count * 6));
+  const maxInv = minInv * 4;
+  document.getElementById('inv-range-label').textContent =
+    `Rango recomendado: $${minInv} – $${maxInv} USDC (mín. $${(minInv/d.grid_count).toFixed(0)}/orden)`;
+  document.getElementById('inv-slider').min   = minInv;
+  document.getElementById('inv-slider').max   = maxInv;
+  document.getElementById('inv-slider').value = Math.min(Math.max(60, minInv), maxInv);
+  document.getElementById('inv-min-label').textContent = '$'+minInv;
+  document.getElementById('inv-max-label').textContent = '$'+maxInv;
+  updateInvestment();
 
   document.getElementById('p-notes').innerHTML =
-    `<strong style="color:var(--text)">📋 Cómo ingresar en Binance:</strong><br>
-    1. Trade → Bots → Grid de Spot → SOL/USDC → Manual<br>
-    2. Más bajo: <strong style="color:var(--accent)">$${d.price_min}</strong> | Más alto: <strong style="color:var(--danger)">$${d.price_max}</strong> | Grids: <strong>${d.grid_count}</strong> | Modo: <strong>${d.grid_mode === 'geometrico' ? 'Geométrico' : 'Aritmético'}</strong><br>
-    3. Inversión: <strong style="color:var(--amber)">$60 USDC</strong><br>
-    4. Avanzado → TP: <strong style="color:var(--accent)">$${d.tp}</strong> | SL: <strong style="color:var(--danger)">$${d.sl}</strong> → ✅ Vender todas las SOL en stop`;
-
-  document.getElementById('analysis-section').style.display = 'block';
-  document.getElementById('params-section').style.display = 'block';
-
-  if(d.current_price) checkAlerts(d.current_price, d);
+    `<strong style="color:var(--text)">📋 Cómo ingresar en Binance (Trade → Bots → Grid de Spot → SOL/USDC → Manual):</strong><br>
+    <span style="color:var(--accent)">Más bajo:</span> $${d.price_min} &nbsp;|&nbsp;
+    <span style="color:var(--danger)">Más alto:</span> $${d.price_max} &nbsp;|&nbsp;
+    <span style="color:var(--text)">Grids:</span> ${d.grid_count} &nbsp;|&nbsp;
+    <span style="color:var(--text)">Modo:</span> ${d.grid_mode==='geometrico'?'Geométrico':'Aritmético'}<br>
+    Sección Avanzado → <span style="color:var(--accent)">TP: $${d.tp}</span> &nbsp;|&nbsp; <span style="color:var(--danger)">SL: $${d.sl}</span> &nbsp;|&nbsp; ✅ Vender todas las SOL en stop`;
 }
 
-// Countdown
-setInterval(()=>{
-  countdown--;
-  document.getElementById('next-update').textContent = `Precio actualiza en ${countdown}s`;
-  if(countdown <= 0) countdown = 30;
-}, 1000);
+function updateInvestment(){
+  if(!lastAnalysis) return;
+  const inv     = parseFloat(document.getElementById('inv-slider').value);
+  const grids   = lastAnalysis.grid_count;
+  const profit  = lastAnalysis.profit_per_grid_pct;
+  const perOrder = (inv / grids).toFixed(2);
+  const fills    = grids * 0.2;
+  const daily    = (fills * (inv/grids) * profit / 100).toFixed(3);
+  const monthly  = (daily * 30).toFixed(2);
+  document.getElementById('inv-display').textContent   = '$'+inv;
+  document.getElementById('ir-per-order').textContent  = '$'+perOrder;
+  document.getElementById('ir-daily').textContent      = '$'+daily;
+  document.getElementById('ir-monthly').textContent    = '$'+monthly;
+}
 
 fetchState();
-setInterval(fetchState, 30000);
-addLog('Dashboard v2 conectado — Toca "Analizar" para obtener parámetros', 'success');
+setInterval(fetchState, 15000);
+addLog('Dashboard v3 listo — Ingresa tu bot activo o analiza el mercado', 'success');
 </script>
 </body>
 </html>
