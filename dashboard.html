@@ -251,12 +251,10 @@ button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
         <input type="range" id="inv-slider" min="20" max="200" value="60" step="5" oninput="updateInvestment()" style="flex:1;margin:0 10px"/>
         <span style="font-size:11px;color:var(--text3)" id="inv-max-label">$200</span>
       </div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px">
-        <button onclick="changeInv(-10)" style="width:36px;height:36px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);font-size:16px;cursor:pointer;margin:0" title="-10">◀◀</button>
-        <button onclick="changeInv(-1)" style="width:36px;height:36px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);font-size:18px;cursor:pointer;margin:0" title="-1">◀</button>
-        <div class="inv-amount" id="inv-display" style="font-size:26px;min-width:90px;text-align:center">$60</div>
-        <button onclick="changeInv(1)" style="width:36px;height:36px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);font-size:18px;cursor:pointer;margin:0" title="+1">▶</button>
-        <button onclick="changeInv(10)" style="width:36px;height:36px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:var(--r);font-size:18px;cursor:pointer;margin:0" title="+10">▶▶</button>
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px">
+        <button id="btn-inv-minus" style="width:40px;height:40px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:var(--r);font-size:20px;cursor:pointer;margin:0;line-height:1">−</button>
+        <div class="inv-amount" id="inv-display" style="font-size:28px;min-width:90px;text-align:center">$60</div>
+        <button id="btn-inv-plus" style="width:40px;height:40px;padding:0;background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:var(--r);font-size:20px;cursor:pointer;margin:0;line-height:1">+</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
         <div class="inv-result"><div class="ir-label">Capital/orden</div><div class="ir-value" id="ir-per-order">--</div></div>
@@ -482,6 +480,51 @@ function renderAnalysis(d){
   document.getElementById('signal-detail').textContent =
     `Tendencia: ${d.trend} · Soporte: $${d.support} · Resistencia: $${d.resistance} · Riesgo: ${d.risk_level} — ${d.risk_reason}`;
 
+  // Market situation alert for proposed bot
+  let mSit, mIcon, mTitle, mDesc, mConclusion, mBadge, mBadgeClass;
+  if(d.signal === 'OPEN' && d.risk_level === 'LOW'){
+    mSit='verde'; mIcon='✅'; mTitle='Momento óptimo para abrir el bot';
+    mDesc=`RSI en ${d.rsi} (zona neutra), volatilidad baja (${d.volatility}%), MACD ${d.macd_signal.toLowerCase()}. El mercado está en condiciones ideales para un grid bot.`;
+    mConclusion=`En palabras simples: ahora es un buen momento para activar el bot. El precio de SOL está en calma, no está ni muy arriba ni muy abajo, y los indicadores sugieren que va a seguir moviéndose dentro de un rango estable. Es exactamente lo que necesita un grid bot para generar ganancias.`;
+    mBadge='✅ Abrir el bot con confianza'; mBadgeClass='mantener';
+  } else if(d.signal === 'OPEN' && d.risk_level === 'MEDIUM'){
+    mSit='amarillo'; mIcon='👍'; mTitle='Buen momento, con precaución moderada';
+    mDesc=`Señal positiva pero con riesgo medio. RSI: ${d.rsi}, volatilidad: ${d.volatility}%, MACD: ${d.macd_signal}.`;
+    mConclusion=`En palabras simples: puedes abrir el bot, pero el mercado tiene algo de movimiento. No es peligroso, pero conviene usar un rango más amplio que el mínimo y configurar bien el Stop Loss para que si el precio se mueve bruscamente, el bot cierre automáticamente sin perder demasiado.`;
+    mBadge='👍 Abrir con SL bien configurado'; mBadgeClass='vigilar';
+  } else if(d.signal === 'WAIT'){
+    mSit='naranja'; mIcon='⏳'; mTitle='Mejor esperar antes de abrir';
+    mDesc=`Condiciones mixtas. RSI: ${d.rsi}, volatilidad: ${d.volatility}%, tendencia ${d.trend}.`;
+    mConclusion=`En palabras simples: el mercado está indeciso ahora mismo. Si abres el bot en este momento, hay más probabilidades de que el precio se salga del rango pronto, lo que podría activar el Stop Loss. Lo más prudente es esperar unas horas, volver a analizar y abrir cuando las condiciones mejoren.`;
+    mBadge='⏳ Esperar y re-analizar en 2-4 horas'; mBadgeClass='ajustar';
+  } else {
+    mSit='rojo'; mIcon='🚫'; mTitle='No es momento de abrir el bot';
+    mDesc=`Señal negativa. RSI: ${d.rsi}, volatilidad alta: ${d.volatility}%, MACD: ${d.macd_signal}.`;
+    mConclusion=`En palabras simples: el mercado está en un momento difícil. La volatilidad es alta o los indicadores muestran una tendencia fuerte hacia abajo. Abrir el bot ahora sería arriesgado porque el precio podría salirse del rango rápidamente y activar el Stop Loss con pérdida. Mejor guardar el capital y esperar un panorama más estable.`;
+    mBadge='🚫 No abrir — esperar mejor panorama'; mBadgeClass='cerrar';
+  }
+
+  // Insert market alert after analysis content
+  const existingAlert = document.getElementById('market-situation-alert');
+  if(existingAlert) existingAlert.remove();
+  const alertDiv = document.createElement('div');
+  alertDiv.id = 'market-situation-alert';
+  alertDiv.style.marginTop = '12px';
+  alertDiv.innerHTML = `
+    <div class="alert-situacion ${mSit}">
+      <div class="alert-icon">${mIcon}</div>
+      <div class="alert-body">
+        <div class="a-tag">Situación del bot sugerido</div>
+        <div class="a-title">${mTitle}</div>
+        <div class="a-desc">${mDesc}</div>
+        <div style="margin-top:10px;padding:10px;background:rgba(0,0,0,0.2);border-radius:6px;font-size:12px;color:var(--text2);line-height:1.6">
+          <strong style="color:var(--text);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">💬 Conclusión</strong><br>${mConclusion}
+        </div>
+        <div class="accion-badge ${mBadgeClass}" style="margin-top:8px">${mBadge}</div>
+      </div>
+    </div>`;
+  document.getElementById('analysis-content').appendChild(alertDiv);
+
   document.getElementById('p-min').textContent   = '$'+d.price_min;
   document.getElementById('p-max').textContent   = '$'+d.price_max;
   document.getElementById('p-grids').textContent = d.grid_count;
@@ -521,15 +564,6 @@ function renderAnalysis(d){
     Sección Avanzado → <span style="color:var(--accent)">TP: $${d.tp}</span> &nbsp;|&nbsp; <span style="color:var(--danger)">SL: $${d.sl}</span> &nbsp;|&nbsp; ✅ Vender todas las SOL en stop`;
 }
 
-function changeInv(delta){
-  const slider = document.getElementById('inv-slider');
-  const min = parseInt(slider.min);
-  const max = parseInt(slider.max);
-  const val = Math.min(max, Math.max(min, parseInt(slider.value) + delta));
-  slider.value = val;
-  updateInvestment();
-}
-
 function updateInvestment(){
   if(!lastAnalysis) return;
   const inv     = parseFloat(document.getElementById('inv-slider').value);
@@ -544,6 +578,20 @@ function updateInvestment(){
   document.getElementById('ir-daily').textContent      = '$'+daily;
   document.getElementById('ir-monthly').textContent    = '$'+monthly;
 }
+
+// Investment buttons via addEventListener (more reliable than onclick)
+document.addEventListener('DOMContentLoaded', function(){
+  document.getElementById('btn-inv-minus').addEventListener('click', function(){
+    const s = document.getElementById('inv-slider');
+    const v = Math.max(parseInt(s.min), parseInt(s.value) - 1);
+    s.value = v; updateInvestment();
+  });
+  document.getElementById('btn-inv-plus').addEventListener('click', function(){
+    const s = document.getElementById('inv-slider');
+    const v = Math.min(parseInt(s.max), parseInt(s.value) + 1);
+    s.value = v; updateInvestment();
+  });
+});
 
 fetchState();
 setInterval(fetchState, 15000);
