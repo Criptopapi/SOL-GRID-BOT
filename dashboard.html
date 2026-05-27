@@ -3,111 +3,247 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SOL Grid Bot</title>
+<title>SOL Grid Bot Dashboard</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0e1a;color:#e2e8f0;font-family:'Segoe UI',sans-serif;padding:20px}
-h1{color:#00d4aa;font-size:20px;margin-bottom:20px}
-.card{background:#111827;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px;margin-bottom:16px}
-.card h2{font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
-.price{font-size:32px;font-weight:700;color:#f59e0b;font-family:monospace}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.metric{background:#1a2235;border-radius:8px;padding:10px}
-.metric .label{font-size:11px;color:#64748b;margin-bottom:4px}
-.metric .value{font-size:18px;font-weight:600;font-family:monospace}
-.green{color:#00d4aa} .amber{color:#f59e0b} .red{color:#ef4444} .purple{color:#a78bfa}
-button{padding:12px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;width:100%;margin-bottom:8px;transition:all .2s}
-.btn-analyze{background:#7c3aed;color:#fff}
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--surface3:#1e2a3a;
+  --accent:#00d4aa;--purple:#7c3aed;--amber:#f59e0b;--danger:#ef4444;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --border:rgba(255,255,255,0.07);--r:8px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:14px;padding:16px;max-width:900px;margin:0 auto}
+h1{color:var(--accent);font-size:18px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.subtitle{color:var(--text3);font-size:12px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
+.card-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.price-big{font-size:38px;font-weight:700;color:var(--amber);font-family:monospace;line-height:1}
+.price-sub{font-size:12px;color:var(--text3);margin-top:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.metric{background:var(--surface2);border-radius:var(--r);padding:10px 12px}
+.metric .lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+.metric .val{font-size:17px;font-weight:600;font-family:monospace}
+.green{color:var(--accent)} .amber{color:var(--amber)} .red{color:var(--danger)} .purple{color:#a78bfa} .white{color:var(--text)}
+
+/* Señal principal */
+.signal-box{border-radius:var(--r);padding:12px 16px;font-weight:700;font-size:14px;text-align:center;margin-bottom:12px;border:1px solid}
+.signal-box.OPEN{background:rgba(0,212,170,0.1);color:var(--accent);border-color:rgba(0,212,170,0.3)}
+.signal-box.WAIT{background:rgba(245,158,11,0.1);color:var(--amber);border-color:rgba(245,158,11,0.3)}
+.signal-box.AVOID{background:rgba(239,68,68,0.1);color:var(--danger);border-color:rgba(239,68,68,0.3)}
+
+/* Alertas */
+.alert{border-radius:var(--r);padding:10px 14px;margin-bottom:8px;font-size:13px;display:flex;align-items:flex-start;gap:10px;border:1px solid}
+.alert.green{background:rgba(0,212,170,0.07);border-color:rgba(0,212,170,0.2);color:var(--accent)}
+.alert.yellow{background:rgba(245,158,11,0.07);border-color:rgba(245,158,11,0.2);color:var(--amber)}
+.alert.red{background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:var(--danger)}
+.alert-icon{font-size:16px;margin-top:1px}
+.alert-text strong{display:block;margin-bottom:2px}
+.alert-text span{font-size:12px;opacity:0.8}
+
+/* Parámetros Binance */
+.params-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.param-item{background:var(--surface2);border-radius:var(--r);padding:10px 12px}
+.param-item .p-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.param-item .p-value{font-size:20px;font-weight:700;font-family:monospace;color:var(--text)}
+.param-item .p-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.param-item.highlight{border:1px solid rgba(0,212,170,0.3)}
+.copy-btn{background:var(--surface3);border:1px solid var(--border);color:var(--text2);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-family:monospace;transition:all .2s}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+.mode-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;font-family:monospace}
+.mode-badge.aritmetico{background:rgba(0,212,170,0.15);color:var(--accent)}
+.mode-badge.geometrico{background:rgba(124,58,237,0.15);color:#a78bfa}
+
+/* Indicadores */
+.ind-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.ind-row:last-child{border-bottom:none}
+.ind-name{font-size:12px;color:var(--text2);font-weight:500}
+.ind-value{font-family:monospace;font-size:13px;font-weight:600}
+.ind-bar{flex:1;margin:0 12px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.ind-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+
+/* Botones */
+button{padding:11px 16px;border:none;border-radius:var(--r);cursor:pointer;font-weight:700;font-size:13px;width:100%;margin-bottom:8px;transition:all .2s;font-family:'Segoe UI',sans-serif}
+.btn-analyze{background:var(--purple);color:#fff}
 .btn-analyze:hover{background:#8b5cf6}
-.btn-start{background:#00d4aa;color:#000}
-.btn-start:hover{background:#00f0c4}
-.btn-stop{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
-.btn-stop:hover{background:rgba(239,68,68,0.25)}
-button:disabled{opacity:0.4;cursor:not-allowed}
-.log{height:200px;overflow-y:auto;background:#0a0e1a;border-radius:8px;padding:10px;font-family:monospace;font-size:12px}
-.log-entry{padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
-.log-entry.success{color:#00d4aa}
-.log-entry.error{color:#ef4444}
-.log-entry.warn{color:#f59e0b}
-.log-entry.info{color:#94a3b8}
-.signal{padding:8px 12px;border-radius:8px;font-weight:700;font-size:13px;text-align:center;margin-bottom:10px}
-.signal.OPEN{background:rgba(0,212,170,0.15);color:#00d4aa;border:1px solid rgba(0,212,170,0.3)}
-.signal.WAIT{background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)}
-.signal.AVOID{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
-input{width:100%;background:#1a2235;border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;padding:8px 10px;border-radius:6px;font-family:monospace;font-size:13px;margin-bottom:8px}
-label{font-size:12px;color:#94a3b8;display:block;margin-bottom:4px}
-.url-info{font-size:11px;color:#64748b;margin-bottom:16px;word-break:break-all}
+.btn-analyze:disabled{opacity:0.4;cursor:not-allowed}
+.btn-refresh{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.btn-refresh:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Log */
+.log{height:160px;overflow-y:auto;background:#070b14;border-radius:var(--r);padding:10px;font-family:monospace;font-size:11px}
+.log::-webkit-scrollbar{width:3px}
+.log::-webkit-scrollbar-thumb{background:var(--text3);border-radius:2px}
+.le{padding:2px 0;display:flex;gap:8px}
+.le.success .lm{color:var(--accent)}
+.le.error .lm{color:var(--danger)}
+.le.warn .lm{color:var(--amber)}
+.le.info .lm{color:var(--text2)}
+.lt{color:var(--text3);min-width:65px}
+
+/* TP/SL display */
+.tpsl-row{display:flex;gap:10px;margin-top:10px}
+.tpsl-item{flex:1;border-radius:var(--r);padding:10px;text-align:center}
+.tpsl-item.tp{background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.2)}
+.tpsl-item.sl{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2)}
+.tpsl-item .tl{font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.tpsl-item.tp .tl{color:var(--accent)}
+.tpsl-item.sl .tl{color:var(--danger)}
+.tpsl-item .tv{font-size:18px;font-weight:700;font-family:monospace}
+.tpsl-item.tp .tv{color:var(--accent)}
+.tpsl-item.sl .tv{color:var(--danger)}
+.tpsl-item .ts{font-size:10px;color:var(--text3);margin-top:2px}
+
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot.green{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.dot.amber{background:var(--amber)}
+.dot.red{background:var(--danger);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+.section-divider{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 10px;display:flex;align-items:center;gap:8px}
+.section-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.last-update{font-size:11px;color:var(--text3);text-align:right;margin-top:6px}
 </style>
 </head>
 <body>
 
 <h1>⚡ SOL/USDC Grid Bot</h1>
+<div class="subtitle">Dashboard de análisis — parámetros para Binance Grid de Spot</div>
 
+<!-- Precio -->
 <div class="card">
-  <div class="url-info">Bot URL: <span id="bot-url"></span></div>
-  <div class="price" id="price">$---</div>
-  <div style="font-size:12px;color:#64748b;margin-top:4px">SOL/USDC • actualiza cada 10s</div>
-</div>
-
-<div class="card">
-  <h2>Estado</h2>
-  <div class="grid">
-    <div class="metric"><div class="label">BOT</div><div class="value" id="status">⏸ Detenido</div></div>
-    <div class="metric"><div class="label">PNL SESIÓN</div><div class="value green" id="pnl">$0.00</div></div>
-    <div class="metric"><div class="label">ÓRDENES</div><div class="value" id="orders">0</div></div>
-    <div class="metric"><div class="label">LLENADAS</div><div class="value amber" id="filled">0</div></div>
-  </div>
-</div>
-
-<div class="card" id="analysis-card" style="display:none">
-  <h2>Análisis del Mercado</h2>
-  <div class="signal" id="signal-badge">---</div>
-  <div class="grid">
-    <div class="metric"><div class="label">RSI</div><div class="value" id="rsi">---</div></div>
-    <div class="metric"><div class="label">VOLATILIDAD</div><div class="value" id="vol">---</div></div>
-    <div class="metric"><div class="label">SOPORTE</div><div class="value green" id="support">---</div></div>
-    <div class="metric"><div class="label">RESISTENCIA</div><div class="value red" id="resistance">---</div></div>
-  </div>
-  <div style="margin-top:10px;font-size:12px;color:#94a3b8" id="signal-reason"></div>
-</div>
-
-<div class="card" id="params-card" style="display:none">
-  <h2>Parámetros del Grid</h2>
-  <div>
-    <label>Precio Mínimo</label>
-    <input type="number" id="price-min" step="0.01"/>
-    <label>Precio Máximo</label>
-    <input type="number" id="price-max" step="0.01"/>
-    <label>Número de Grillas</label>
-    <input type="number" id="grid-count" min="2" max="20"/>
-    <div class="metric" style="margin-bottom:8px">
-      <div class="label">Ganancia estimada/día</div>
-      <div class="value green" id="est-profit">---</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <div class="price-big" id="price">$---</div>
+      <div class="price-sub">SOL/USDC en tiempo real</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:12px;color:var(--text3)">Cambio 24h</div>
+      <div style="font-size:18px;font-weight:700;font-family:monospace" id="change24h">---</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px" id="last-update">--:--:--</div>
     </div>
   </div>
 </div>
 
-<div class="card">
-  <h2>Controles</h2>
-  <button class="btn-analyze" id="btn-analyze" onclick="analyze()">🔍 ANALIZAR MERCADO</button>
-  <button class="btn-start" id="btn-start" onclick="startBot()" disabled>▶ INICIAR BOT</button>
-  <button class="btn-stop" id="btn-stop" onclick="stopBot()" style="display:none">■ DETENER BOT</button>
+<!-- Alertas -->
+<div id="alerts-section" style="display:none">
+  <div class="section-divider">Estado del grid</div>
+  <div id="alerts-container"></div>
 </div>
 
+<!-- Señal y análisis -->
+<div id="analysis-section" style="display:none">
+  <div class="section-divider">Análisis de mercado</div>
+  <div class="card">
+    <div class="signal-box" id="signal-box">---</div>
+    <div class="grid3">
+      <div class="metric"><div class="lbl">RSI(14)</div><div class="val" id="i-rsi">--</div></div>
+      <div class="metric"><div class="lbl">EMA 20</div><div class="val" id="i-ema20">--</div></div>
+      <div class="metric"><div class="lbl">EMA 50</div><div class="val" id="i-ema50">--</div></div>
+      <div class="metric"><div class="lbl">MACD</div><div class="val" id="i-macd">--</div></div>
+      <div class="metric"><div class="lbl">ATR(14)</div><div class="val" id="i-atr">--</div></div>
+      <div class="metric"><div class="lbl">Volatilidad</div><div class="val" id="i-vol">--</div></div>
+    </div>
+
+    <!-- Bollinger Bands visual -->
+    <div style="margin-top:10px;background:var(--surface2);border-radius:var(--r);padding:10px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Bandas de Bollinger — posición del precio</div>
+      <div style="position:relative;height:20px;background:var(--surface);border-radius:4px;overflow:hidden">
+        <div id="bb-fill" style="position:absolute;top:0;bottom:0;background:rgba(0,212,170,0.15);border-radius:4px"></div>
+        <div id="bb-price" style="position:absolute;top:2px;bottom:2px;width:4px;background:var(--amber);border-radius:2px;transition:left .5s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;font-family:monospace;color:var(--text3)">
+        <span id="bb-lower">--</span><span style="color:var(--text2)">Media: <span id="bb-mid">--</span></span><span id="bb-upper">--</span>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;font-size:12px;color:var(--text2)" id="signal-detail"></div>
+  </div>
+</div>
+
+<!-- Parámetros para Binance -->
+<div id="params-section" style="display:none">
+  <div class="section-divider">Parámetros para Binance Grid de Spot</div>
+  <div class="card">
+
+    <div class="params-grid">
+      <div class="param-item highlight">
+        <div class="p-label">🔻 Precio Mínimo (Más bajo)</div>
+        <div class="p-value green" id="p-min">--</div>
+        <div class="p-sub">Límite inferior del grid</div>
+      </div>
+      <div class="param-item highlight">
+        <div class="p-label">🔺 Precio Máximo (Más alto)</div>
+        <div class="p-value red" id="p-max">--</div>
+        <div class="p-sub">Límite superior del grid</div>
+      </div>
+      <div class="param-item">
+        <div class="p-label">⊞ Cantidad de Grids</div>
+        <div class="p-value white" id="p-grids">--</div>
+        <div class="p-sub">Número de niveles</div>
+      </div>
+      <div class="param-item">
+        <div class="p-label">⚙ Modo recomendado</div>
+        <div class="p-value" id="p-mode">--</div>
+        <div class="p-sub" id="p-mode-reason">--</div>
+      </div>
+      <div class="param-item">
+        <div class="p-label">💰 Inversión</div>
+        <div class="p-value amber" id="p-capital">--</div>
+        <div class="p-sub">USDC a invertir</div>
+      </div>
+      <div class="param-item">
+        <div class="p-label">📈 Ganancia/grid est.</div>
+        <div class="p-value green" id="p-profit">--</div>
+        <div class="p-sub" id="p-daily">--</div>
+      </div>
+    </div>
+
+    <!-- TP/SL -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">TP / SL recomendados (sección Avanzado)</div>
+    <div class="tpsl-row">
+      <div class="tpsl-item tp">
+        <div class="tl">Take Profit</div>
+        <div class="tv" id="p-tp">--</div>
+        <div class="ts" id="p-tp-pct">--</div>
+      </div>
+      <div class="tpsl-item sl">
+        <div class="tl">Stop Loss</div>
+        <div class="tv" id="p-sl">--</div>
+        <div class="ts" id="p-sl-pct">--</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;background:var(--surface2);border-radius:var(--r);padding:10px;font-size:12px;color:var(--text2)" id="p-notes"></div>
+  </div>
+</div>
+
+<!-- Controles -->
 <div class="card">
-  <h2>Log</h2>
+  <div class="card-title">Controles</div>
+  <button class="btn-analyze" id="btn-analyze" onclick="analyze()">🔍 ANALIZAR MERCADO AHORA</button>
+  <button class="btn-refresh" onclick="fetchState()">↺ Actualizar precio</button>
+</div>
+
+<!-- Log -->
+<div class="card">
+  <div class="card-title">Log</div>
   <div class="log" id="log"></div>
+  <div class="last-update" id="next-update">Próxima actualización: --</div>
 </div>
 
 <script>
 const BOT_URL = window.location.origin;
-document.getElementById('bot-url').textContent = BOT_URL;
+let lastAnalysis = null;
+let countdown = 30;
 
 function addLog(msg, level='info'){
   const c = document.getElementById('log');
   const d = document.createElement('div');
-  d.className = 'log-entry ' + level;
-  d.textContent = new Date().toLocaleTimeString() + ' — ' + msg;
+  d.className = 'le ' + level;
+  const t = new Date().toLocaleTimeString();
+  d.innerHTML = `<span class="lt">${t}</span><span class="lm">${msg}</span>`;
   c.appendChild(d);
   c.scrollTop = c.scrollHeight;
 }
@@ -116,99 +252,162 @@ async function fetchState(){
   try{
     const r = await fetch(BOT_URL + '/state');
     const d = await r.json();
-    document.getElementById('price').textContent = d.sol_price ? '$' + d.sol_price.toFixed(2) : '$---';
-    document.getElementById('pnl').textContent = '$' + (d.pnl || 0).toFixed(4);
-    document.getElementById('orders').textContent = (d.orders || []).length;
-    document.getElementById('filled').textContent = (d.filled || []).length;
-    const running = d.running;
-    document.getElementById('status').textContent = running ? '🟢 Activo' : '⏸ Detenido';
-    document.getElementById('btn-start').style.display = running ? 'none' : 'block';
-    document.getElementById('btn-stop').style.display = running ? 'block' : 'none';
-
-    // Mostrar logs nuevos del servidor
-    if(d.log && d.log.length > 0){
-      const last = d.log[d.log.length-1];
-      const key = last.time + last.msg;
-      if(key !== window._lastLog){
-        window._lastLog = key;
-        d.log.slice(-3).forEach(l => addLog(l.msg, l.level));
-      }
+    if(d.sol_price){
+      document.getElementById('price').textContent = '$' + d.sol_price.toFixed(2);
+      document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+      if(lastAnalysis) checkAlerts(d.sol_price, lastAnalysis);
     }
-  }catch(e){ addLog('Error conectando al bot: ' + e.message, 'error'); }
+  }catch(e){ addLog('Error conectando: ' + e.message, 'error'); }
+}
+
+function checkAlerts(price, a){
+  const container = document.getElementById('alerts-container');
+  const section = document.getElementById('alerts-section');
+  const alerts = [];
+  const pMin = a.price_min;
+  const pMax = a.price_max;
+  const pct = (price - pMin) / (pMax - pMin) * 100;
+  const distBottom = ((price - pMin) / price * 100).toFixed(1);
+  const distTop = ((pMax - price) / price * 100).toFixed(1);
+
+  // Alerta SL cercano
+  if(pct < 10){
+    alerts.push({type:'red', icon:'🚨', title:'PELIGRO — Precio cerca del límite inferior',
+      text:`SOL está a solo ${distBottom}% del precio mínimo ($${pMin}). Considera detener el grid y re-analizar.`});
+  } else if(pct < 20){
+    alerts.push({type:'yellow', icon:'⚠️', title:'Atención — Precio acercándose al límite inferior',
+      text:`SOL está a ${distBottom}% del mínimo ($${pMin}). Monitorea de cerca.`});
+  }
+
+  // Alerta TP cercano
+  if(pct > 90){
+    alerts.push({type:'yellow', icon:'⚠️', title:'Precio cerca del límite superior',
+      text:`SOL está a ${distTop}% del máximo ($${pMax}). El grid puede dejar de generar órdenes de compra pronto.`});
+  }
+
+  // RSI extremo
+  if(a.rsi > 72){
+    alerts.push({type:'yellow', icon:'📊', title:'RSI sobrecomprado',
+      text:`RSI en ${a.rsi} — posible corrección próxima. Evalúa si cerrar el grid.`});
+  } else if(a.rsi < 28){
+    alerts.push({type:'red', icon:'📊', title:'RSI sobrevendido — caída fuerte',
+      text:`RSI en ${a.rsi} — mercado en caída. Alto riesgo de que el precio toque el SL.`});
+  }
+
+  // Condición sana
+  if(alerts.length === 0 && pct >= 20 && pct <= 80){
+    alerts.push({type:'green', icon:'✅', title:'Grid en zona óptima',
+      text:`El precio está en el ${pct.toFixed(0)}% del rango. Condiciones normales, el bot opera correctamente.`});
+  }
+
+  section.style.display = 'block';
+  container.innerHTML = alerts.map(al => `
+    <div class="alert ${al.type}">
+      <span class="alert-icon">${al.icon}</span>
+      <div class="alert-text"><strong>${al.title}</strong><span>${al.text}</span></div>
+    </div>`).join('');
 }
 
 async function analyze(){
   const btn = document.getElementById('btn-analyze');
   btn.disabled = true;
-  btn.textContent = '⏳ Analizando...';
-  addLog('Iniciando análisis de mercado...', 'info');
+  btn.textContent = '⏳ Analizando mercado...';
+  addLog('Iniciando análisis completo...', 'info');
+
   try{
     const r = await fetch(BOT_URL + '/analyze', {method:'POST'});
     const d = await r.json();
     if(d.error){ addLog('Error: ' + d.error, 'error'); return; }
-
-    document.getElementById('analysis-card').style.display = 'block';
-    document.getElementById('params-card').style.display = 'block';
-
-    const badge = document.getElementById('signal-badge');
-    badge.textContent = d.signal + ' — ' + d.signal_reason;
-    badge.className = 'signal ' + d.signal;
-
-    document.getElementById('rsi').textContent = d.rsi;
-    document.getElementById('vol').textContent = d.volatility + '%';
-    document.getElementById('support').textContent = '$' + d.support;
-    document.getElementById('resistance').textContent = '$' + d.resistance;
-    document.getElementById('signal-reason').textContent =
-      `Riesgo: ${d.risk_level} — ${d.risk_reason}`;
-
-    document.getElementById('price-min').value = d.price_min;
-    document.getElementById('price-max').value = d.price_max;
-    document.getElementById('grid-count').value = d.grid_count;
-    document.getElementById('est-profit').textContent =
-      '~$' + d.estimated_daily_profit_usdc + ' USDC/día';
-
-    document.getElementById('btn-start').disabled = d.signal === 'AVOID';
-    addLog(`Análisis: ${d.signal} | RSI:${d.rsi} | Vol:${d.volatility}% | Grillas:${d.grid_count}`, 'success');
-  }catch(e){ addLog('Error en análisis: ' + e.message, 'error'); }
-  finally{ btn.disabled = false; btn.textContent = '🔍 ANALIZAR MERCADO'; }
+    lastAnalysis = d;
+    renderAnalysis(d);
+    addLog(`✓ Señal: ${d.signal} | RSI: ${d.rsi} | Vol: ${d.volatility}% | ATR: $${d.atr}`, 'success');
+  }catch(e){ addLog('Error: ' + e.message, 'error'); }
+  finally{ btn.disabled = false; btn.textContent = '🔍 ANALIZAR MERCADO AHORA'; }
 }
 
-async function startBot(){
-  const btn = document.getElementById('btn-start');
-  btn.disabled = true;
-  btn.textContent = '⏳ Iniciando...';
-  try{
-    const body = {
-      price_min:  parseFloat(document.getElementById('price-min').value),
-      price_max:  parseFloat(document.getElementById('price-max').value),
-      grid_count: parseInt(document.getElementById('grid-count').value),
-    };
-    if(!body.price_min || !body.price_max || !body.grid_count){
-      addLog('Primero analiza el mercado', 'warn'); return;
-    }
-    const r = await fetch(BOT_URL + '/start', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    });
-    const d = await r.json();
-    if(d.error){ addLog('Error: ' + d.error, 'error'); return; }
-    addLog(`Bot iniciado con ${d.orders} órdenes`, 'success');
-  }catch(e){ addLog('Error iniciando bot: ' + e.message, 'error'); }
-  finally{ btn.disabled = false; btn.textContent = '▶ INICIAR BOT'; }
+function renderAnalysis(d){
+  // Señal
+  const sb = document.getElementById('signal-box');
+  sb.className = 'signal-box ' + d.signal;
+  const signalEmoji = {OPEN:'🟢', WAIT:'🟡', AVOID:'🔴'}[d.signal] || '';
+  sb.textContent = signalEmoji + ' ' + d.signal + ' — ' + d.signal_reason;
+
+  // Indicadores
+  document.getElementById('i-rsi').textContent = d.rsi;
+  document.getElementById('i-rsi').className = 'val ' + (d.rsi > 65 ? 'red' : d.rsi < 35 ? 'amber' : 'green');
+  document.getElementById('i-ema20').textContent = '$' + (d.ema20 || '--');
+  document.getElementById('i-ema50').textContent = '$' + (d.ema50 || '--');
+  document.getElementById('i-macd').textContent = d.macd_signal || '--';
+  document.getElementById('i-macd').className = 'val ' + (d.macd_bull ? 'green' : 'red');
+  document.getElementById('i-atr').textContent = '$' + (d.atr || '--');
+  document.getElementById('i-vol').textContent = d.volatility + '%';
+  document.getElementById('i-vol').className = 'val ' + (d.volatility > 10 ? 'red' : d.volatility > 5 ? 'amber' : 'green');
+
+  // Bollinger Bands
+  if(d.bb_lower && d.bb_upper && d.current_price){
+    const bbRange = d.bb_upper - d.bb_lower;
+    const pricePos = Math.max(0, Math.min(100, (d.current_price - d.bb_lower) / bbRange * 100));
+    document.getElementById('bb-price').style.left = pricePos + '%';
+    document.getElementById('bb-lower').textContent = '$' + d.bb_lower.toFixed(2);
+    document.getElementById('bb-mid').textContent = '$' + d.bb_mid.toFixed(2);
+    document.getElementById('bb-upper').textContent = '$' + d.bb_upper.toFixed(2);
+  }
+
+  document.getElementById('signal-detail').textContent =
+    `Tendencia: ${d.trend} | Soporte: $${d.support} | Resistencia: $${d.resistance} | ${d.risk_reason}`;
+
+  // Parámetros Binance
+  document.getElementById('p-min').textContent = '$' + d.price_min;
+  document.getElementById('p-max').textContent = '$' + d.price_max;
+  document.getElementById('p-grids').textContent = d.grid_count;
+  document.getElementById('p-capital').textContent = '$60 USDC';
+  document.getElementById('p-profit').textContent = d.profit_per_grid_pct + '% / grid';
+  document.getElementById('p-daily').textContent = '~$' + d.estimated_daily_profit_usdc + ' USDC/día estimado';
+
+  // Modo aritmético vs geométrico
+  const modeEl = document.getElementById('p-mode');
+  const modeReason = document.getElementById('p-mode-reason');
+  if(d.grid_mode === 'geometrico'){
+    modeEl.innerHTML = '<span class="mode-badge geometrico">GEOMÉTRICO</span>';
+    modeReason.textContent = 'Mejor para rangos amplios (+15%)';
+  } else {
+    modeEl.innerHTML = '<span class="mode-badge aritmetico">ARITMÉTICO</span>';
+    modeReason.textContent = 'Mejor para rangos estrechos';
+  }
+
+  // TP / SL
+  if(d.tp && d.sl){
+    document.getElementById('p-tp').textContent = '$' + d.tp;
+    document.getElementById('p-sl').textContent = '$' + d.sl;
+    const tpPct = ((d.tp - d.current_price) / d.current_price * 100).toFixed(1);
+    const slPct = ((d.current_price - d.sl) / d.current_price * 100).toFixed(1);
+    document.getElementById('p-tp-pct').textContent = '+' + tpPct + '% desde precio actual';
+    document.getElementById('p-sl-pct').textContent = '-' + slPct + '% desde precio actual';
+  }
+
+  document.getElementById('p-notes').innerHTML =
+    `<strong style="color:var(--text)">📋 Cómo ingresar en Binance:</strong><br>
+    1. Trade → Bots → Grid de Spot → SOL/USDC → Manual<br>
+    2. Más bajo: <strong style="color:var(--accent)">$${d.price_min}</strong> | Más alto: <strong style="color:var(--danger)">$${d.price_max}</strong> | Grids: <strong>${d.grid_count}</strong> | Modo: <strong>${d.grid_mode === 'geometrico' ? 'Geométrico' : 'Aritmético'}</strong><br>
+    3. Inversión: <strong style="color:var(--amber)">$60 USDC</strong><br>
+    4. Avanzado → TP: <strong style="color:var(--accent)">$${d.tp}</strong> | SL: <strong style="color:var(--danger)">$${d.sl}</strong> → ✅ Vender todas las SOL en stop`;
+
+  document.getElementById('analysis-section').style.display = 'block';
+  document.getElementById('params-section').style.display = 'block';
+
+  if(d.current_price) checkAlerts(d.current_price, d);
 }
 
-async function stopBot(){
-  if(!confirm('¿Detener el bot y cancelar todas las órdenes?')) return;
-  try{
-    const r = await fetch(BOT_URL + '/stop', {method:'POST'});
-    const d = await r.json();
-    addLog(`Bot detenido. PNL sesión: $${d.pnl_session}`, 'warn');
-  }catch(e){ addLog('Error deteniendo bot: ' + e.message, 'error'); }
-}
+// Countdown
+setInterval(()=>{
+  countdown--;
+  document.getElementById('next-update').textContent = `Precio actualiza en ${countdown}s`;
+  if(countdown <= 0) countdown = 30;
+}, 1000);
 
 fetchState();
-setInterval(fetchState, 10000);
-addLog('Dashboard conectado al bot', 'success');
+setInterval(fetchState, 30000);
+addLog('Dashboard v2 conectado — Toca "Analizar" para obtener parámetros', 'success');
 </script>
 </body>
 </html>

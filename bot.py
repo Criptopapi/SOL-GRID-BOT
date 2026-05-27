@@ -96,6 +96,13 @@ def get_klines(interval="4h", limit=90):
         return []
 
 # ── Algoritmo matemático de análisis ──────────────────────────
+def calc_ema(closes, period):
+    k = 2 / (period + 1)
+    ema = closes[0]
+    for p in closes[1:]:
+        ema = p * k + ema * (1 - k)
+    return round(ema, 2)
+
 def analyze_market(klines, capital):
     closes  = [k["close"]  for k in klines]
     highs   = [k["high"]   for k in klines]
@@ -106,13 +113,12 @@ def analyze_market(klines, capital):
     std = lambda arr: math.sqrt(avg([(x - avg(arr))**2 for x in arr]))
 
     current    = closes[-1]
-    recent20   = closes[-20:]
-    older30    = closes[-50:-20]
-    trend      = "alcista" if avg(recent20) > avg(older30) else "bajista"
-    volatility = std(closes) / avg(closes) * 100  # % desviación estándar
+    trend      = "alcista" if avg(closes[-20:]) > avg(closes[-50:-20]) else "bajista"
+    volatility = std(closes) / avg(closes) * 100
 
-    support    = min(lows[-30:])
-    resistance = max(highs[-30:])
+    # Soporte/resistencia con más historia (60 velas = ~10 días en 4h)
+    support    = min(lows[-60:])
+    resistance = max(highs[-60:])
 
     # RSI(14)
     gains = losses = 0
@@ -123,100 +129,133 @@ def analyze_market(klines, capital):
     rs  = (gains / 14) / (losses / 14 + 0.001)
     rsi = 100 - (100 / (1 + rs))
 
-    # Volumen relativo
-    vol_ratio = avg(volumes[-10:]) / (avg(volumes[-30:-10]) + 0.001)
+    # EMA 20 y 50
+    ema20 = calc_ema(closes[-20:], 20)
+    ema50 = calc_ema(closes[-50:], 50)
+
+    # MACD (EMA12 - EMA26)
+    ema12 = calc_ema(closes[-26:], 12)
+    ema26 = calc_ema(closes[-26:], 26)
+    macd_val = ema12 - ema26
+    macd_bull = macd_val > 0
+    macd_signal_txt = "Alcista" if macd_bull else "Bajista"
+
+    # ATR(14) - volatilidad real en dólares
+    trs = []
+    for i in range(1, 15):
+        tr = max(highs[-i] - lows[-i],
+                 abs(highs[-i] - closes[-i-1]),
+                 abs(lows[-i] - closes[-i-1]))
+        trs.append(tr)
+    atr = round(avg(trs), 2)
+
+    # Bandas de Bollinger (20 periodos, 2 std)
+    bb_closes = closes[-20:]
+    bb_mid    = avg(bb_closes)
+    bb_std    = std(bb_closes)
+    bb_upper  = round(bb_mid + 2 * bb_std, 2)
+    bb_lower  = round(bb_mid - 2 * bb_std, 2)
+    bb_mid    = round(bb_mid, 2)
 
     # ── Decisión de señal ──────────────────────────────────────
-    # AVOID: RSI extremo o precio fuera de rango histórico
-    if rsi > 78:
+    score = 0  # positivo = mejor para abrir
+
+    if rsi < 65 and rsi > 30: score += 2
+    if macd_bull: score += 1
+    if ema20 > ema50: score += 1  # tendencia alcista
+    if current > bb_lower and current < bb_upper: score += 1
+    if volatility < 10: score += 1
+
+    if rsi > 75 or rsi < 25:
         signal = "AVOID"
-        signal_reason = f"RSI sobrecomprado ({rsi:.1f}). Esperar corrección."
-    elif rsi < 25:
+        signal_reason = f"RSI extremo ({rsi:.1f}). Alto riesgo de movimiento brusco."
+    elif volatility > 15:
         signal = "AVOID"
-        signal_reason = f"RSI sobrevendido ({rsi:.1f}). Mercado en caída fuerte."
-    elif current > resistance * 0.98:
-        signal = "WAIT"
-        signal_reason = "Precio cerca de resistencia. Grid podría quedar fuera de rango."
-    elif current < support * 1.02:
-        signal = "WAIT"
-        signal_reason = "Precio cerca de soporte. Esperar estabilización."
-    elif volatility > 18:
-        signal = "WAIT"
-        signal_reason = f"Volatilidad alta ({volatility:.1f}%). Riesgo de salir del rango."
-    else:
+        signal_reason = f"Volatilidad muy alta ({volatility:.1f}%). Grid puede salirse del rango."
+    elif score >= 4:
         signal = "OPEN"
-        signal_reason = f"RSI neutro ({rsi:.1f}), volatilidad controlada ({volatility:.1f}%)."
-
-    # ── Calcular rango del grid ────────────────────────────────
-    # Usar soporte/resistencia ajustados + buffer de seguridad
-    buffer     = volatility / 100 * current  # buffer proporcional a volatilidad
-    price_min  = max(support  * 0.97, current - buffer * 3)
-    price_max  = min(resistance * 1.03, current + buffer * 3)
-
-    # Asegurar que el precio actual esté dentro del rango
-    price_min  = min(price_min, current * 0.92)
-    price_max  = max(price_max, current * 1.08)
-
-    # Redondear a 2 decimales
-    price_min  = round(price_min, 2)
-    price_max  = round(price_max, 2)
-
-    # ── Número de grillas ──────────────────────────────────────
-    # Mínimo $5 USDC por orden (requisito Binance)
-    max_grids  = int(capital / 5)
-    # Más volatilidad = menos grillas (más margen entre órdenes)
-    if volatility < 5:
-        grid_count = min(max_grids, 10)
-    elif volatility < 10:
-        grid_count = min(max_grids, 8)
+        signal_reason = f"RSI neutro ({rsi:.1f}), MACD {macd_signal_txt.lower()}, volatilidad {volatility:.1f}%."
+    elif score >= 2:
+        signal = "WAIT"
+        signal_reason = f"Condiciones mixtas. RSI {rsi:.1f}, volatilidad {volatility:.1f}%."
     else:
-        grid_count = min(max_grids, 6)
+        signal = "AVOID"
+        signal_reason = f"Señales negativas. MACD bajista, RSI {rsi:.1f}."
 
-    grid_count = max(grid_count, 2)
+    # ── Rango del grid: asimétrico (más espacio abajo que arriba) ──
+    # 60% del rango hacia abajo, 40% hacia arriba (precio cae más fácil)
+    atr_multi  = 3.5  # más conservador
+    range_down = atr * atr_multi * 1.2  # más espacio abajo
+    range_up   = atr * atr_multi * 0.8
 
-    # ── Ganancia estimada por grid ─────────────────────────────
-    price_range_pct    = (price_max - price_min) / price_min * 100
-    profit_per_grid    = round(price_range_pct / grid_count, 2)
+    price_min  = round(max(current - range_down, support * 0.96), 2)
+    price_max  = round(min(current + range_up,   resistance * 1.04), 2)
 
-    # ── Ganancia diaria estimada ───────────────────────────────
-    # Asume que ~20% de las grillas se llenan por día en mercado normal
-    fills_per_day      = grid_count * 0.2
-    capital_per_order  = capital / grid_count
-    est_daily          = round(fills_per_day * capital_per_order * profit_per_grid / 100, 4)
+    # Garantizar mínimo 8% de rango total
+    if (price_max - price_min) / current < 0.08:
+        price_min = round(current * 0.93, 2)
+        price_max = round(current * 1.07, 2)
 
-    # ── Nivel de riesgo ────────────────────────────────────────
-    if volatility > 12 or rsi > 70 or rsi < 35:
+    # ── Grillas ────────────────────────────────────────────────
+    max_grids = int(capital / 6)  # mínimo $6 por orden
+    if volatility < 5:   grid_count = min(max_grids, 8)
+    elif volatility < 8: grid_count = min(max_grids, 6)
+    else:                grid_count = min(max_grids, 5)
+    grid_count = max(grid_count, 3)
+
+    # ── Modo aritmético vs geométrico ──────────────────────────
+    price_range_pct = (price_max - price_min) / price_min * 100
+    grid_mode = "geometrico" if price_range_pct > 15 else "aritmetico"
+
+    # ── Ganancia estimada ──────────────────────────────────────
+    profit_per_grid   = round(price_range_pct / grid_count, 2)
+    fills_per_day     = grid_count * 0.2
+    capital_per_order = capital / grid_count
+    est_daily         = round(fills_per_day * capital_per_order * profit_per_grid / 100, 4)
+
+    # ── TP y SL ────────────────────────────────────────────────
+    tp = round(price_max * 1.01, 2)   # 1% sobre el máximo del grid
+    sl = round(price_min * 0.97, 2)   # 3% bajo el mínimo del grid (protege capital)
+
+    # ── Riesgo ─────────────────────────────────────────────────
+    if volatility > 10 or rsi > 68 or rsi < 32:
         risk_level  = "HIGH"
-        risk_reason = "Alta volatilidad o RSI extremo."
-    elif volatility > 7 or abs(rsi - 50) > 15:
+        risk_reason = f"Volatilidad {volatility:.1f}% o RSI extremo ({rsi:.1f})."
+    elif volatility > 6 or abs(rsi - 50) > 15:
         risk_level  = "MEDIUM"
-        risk_reason = "Volatilidad moderada."
+        risk_reason = f"Volatilidad moderada ({volatility:.1f}%)."
     else:
         risk_level  = "LOW"
-        risk_reason = "Mercado estable, RSI neutro."
-
-    rebalance_trigger = (
-        f"Si SOL cae por debajo de ${price_min * 0.95:.2f} "
-        f"o sube sobre ${price_max * 1.05:.2f}"
-    )
+        risk_reason = f"Mercado estable. RSI neutro ({rsi:.1f}), volatilidad baja."
 
     return {
-        "signal":                    signal,
-        "signal_reason":             signal_reason,
-        "price_min":                 price_min,
-        "price_max":                 price_max,
-        "grid_count":                grid_count,
-        "profit_per_grid_pct":       profit_per_grid,
+        "signal":                      signal,
+        "signal_reason":               signal_reason,
+        "price_min":                   price_min,
+        "price_max":                   price_max,
+        "grid_count":                  grid_count,
+        "grid_mode":                   grid_mode,
+        "profit_per_grid_pct":         profit_per_grid,
         "estimated_daily_profit_usdc": est_daily,
-        "risk_level":                risk_level,
-        "risk_reason":               risk_reason,
-        "rebalance_trigger":         rebalance_trigger,
-        "rsi":                       round(rsi, 1),
-        "volatility":                round(volatility, 2),
-        "support":                   round(support, 2),
-        "resistance":                round(resistance, 2),
-        "trend":                     trend,
-        "current_price":             round(current, 2),
+        "risk_level":                  risk_level,
+        "risk_reason":                 risk_reason,
+        "tp":                          tp,
+        "sl":                          sl,
+        "rsi":                         round(rsi, 1),
+        "ema20":                       ema20,
+        "ema50":                       ema50,
+        "macd_bull":                   macd_bull,
+        "macd_signal":                 macd_signal_txt,
+        "atr":                         atr,
+        "bb_upper":                    bb_upper,
+        "bb_mid":                      bb_mid,
+        "bb_lower":                    bb_lower,
+        "volatility":                  round(volatility, 2),
+        "support":                     round(support, 2),
+        "resistance":                  round(resistance, 2),
+        "trend":                       trend,
+        "current_price":               round(current, 2),
+        "rebalance_trigger":           f"Si SOL cae bajo ${sl} o sube sobre ${tp}",
     }
 
 # ── Info del símbolo (para redondeo) ───────────────────────────
