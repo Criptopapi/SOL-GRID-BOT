@@ -322,29 +322,83 @@ def analyze_market_multi(tf_data, capital):
 
     price_range = price_max - price_min
 
-    # ── Número de grids óptimo — sin topes fijos ─────────────
+    # ── Número de grids óptimo por simulación histórica ──────
     #
-    # Regla: gap entre grids debe ser >= 0.8x ATR ponderado
-    # para que cada grid capture un movimiento real, no ruido.
-    # Si el gap es muy pequeño, las órdenes se llenan y des-llenan
-    # por volatilidad aleatoria sin generar ganancia neta.
+    # Estrategia: balance máximo entre frecuencia y ganancia/grid
+    # Usamos el historial real de movimientos de 1h para simular
+    # cuántos llenados tendría cada configuración de grids.
     #
-    # Fórmula:
-    #   max_by_range = rango / (0.8 * ATR)  → grids que caben con gap mínimo
-    #   max_by_cap   = capital / 6           → grids que financia el capital
-    #   grid_count   = min(max_by_range, max_by_cap)
+    # Para cada n_grids posible:
+    #   gap = rango / n_grids
+    #   llenados_día = movimiento_diario_promedio / gap
+    #   ganancia_grid = gap / precio_medio * 100 (%)
+    #   score = llenados_día * ganancia_grid  ← maximizar esto
     #
-    # Sin techo artificial — si el mercado y el capital permiten 15, son 15.
+    # Restricciones reales de Binance:
+    #   - Mínimo notional por orden: $5 (usamos $5.50 con margen)
+    #   - Máximo grids en Binance: 170
+    #   - Mínimo grids: 2
 
-    min_gap_usdc = atr_weighted * 0.8        # gap mínimo en dólares
-    max_by_range = int(price_range / min_gap_usdc) if min_gap_usdc > 0 else 20
-    max_by_cap   = int(capital / 6.0)        # mínimo $6 por orden (Binance)
+    # Movimiento diario promedio basado en ATR de 1h escalado a 1 día
+    # ATR 1h × sqrt(24) = movimiento esperado en 24h (random walk)
+    atr_1h_val    = tf1h["atr"] if tf1h else atr_weighted / 2
+    daily_move    = atr_1h_val * (24 ** 0.5)  # movimiento diario esperado en $
 
-    grid_count        = max(3, min(max_by_range, max_by_cap))
+    # Límite máximo de grids por capital (mínimo $5.50 por orden — Binance)
+    min_notional  = 5.50
+    max_by_cap    = int(capital / min_notional)  # sin piso artificial
+
+    # Límite máximo por rango (gap mínimo = 0.3× ATR 1h para no capturar ruido)
+    min_gap_usdc  = atr_1h_val * 0.3
+    max_by_range  = int(price_range / min_gap_usdc) if min_gap_usdc > 0 else 170
+    max_by_range  = min(max_by_range, 170)  # límite Binance
+
+    # Límite real de grids a evaluar
+    max_grids = min(max_by_cap, max_by_range)
+
+    # Simular score para cada número de grids posible
+    best_score  = -1
+    best_grids  = 3
+    best_gap    = price_range / 3
+    sim_results = []
+
+    for n in range(2, max_grids + 1):
+        cap_per_order = capital / n
+        if cap_per_order < min_notional:
+            break  # capital insuficiente para este número de grids
+
+        gap           = price_range / n
+        gap_pct       = gap / ((price_min + price_max) / 2) * 100
+
+        # Llenados diarios estimados: cuántas veces el precio cruza un gap
+        # Modelo: llenados = movimiento_diario / gap (con techo en n*0.5)
+        fills_per_day = min(daily_move / gap, n * 0.5)
+
+        # Ganancia por grid en % (descontando ~0.1% de comisión × 2 lados)
+        fee           = 0.001 * 2  # 0.1% taker × 2 operaciones
+        profit_pct    = gap_pct / 100 - fee
+        if profit_pct <= 0:
+            continue  # gap tan pequeño que la comisión se come la ganancia
+
+        # Score = ganancia diaria en USDC
+        daily_profit  = fills_per_day * cap_per_order * profit_pct
+        sim_results.append((n, round(daily_profit, 6), round(gap, 2),
+                            round(gap_pct, 2), round(fills_per_day, 2)))
+
+        if daily_profit > best_score:
+            best_score  = daily_profit
+            best_grids  = n
+            best_gap    = gap
+
+    grid_count        = max(2, best_grids)
     capital_per_order = round(capital / grid_count, 2)
 
-    log(f"Grids: rango=${price_range:.2f} / gap_min=${min_gap_usdc:.2f} = {max_by_range} por rango | "
-        f"capital ${capital} / $6 = {max_by_cap} por capital → {grid_count} grids", "info")
+    # Top 3 configuraciones alternativas para el log
+    sim_results.sort(key=lambda x: -x[1])
+    top3 = sim_results[:3]
+    log(f"Simulación: top configuraciones → " +
+        " | ".join([f"{r[0]} grids=${r[1]:.4f}/día" for r in top3]), "info")
+    log(f"Óptimo: {grid_count} grids · gap=${best_gap:.2f} · ${capital_per_order}/orden", "info")
 
     # ── Modo aritmético vs geométrico ─────────────────────────
     # Geométrico: mejor cuando el rango es amplio (>12%) o ATR alto
@@ -921,12 +975,32 @@ def recalculate():
     price_range     = price_max - price_min
     price_range_pct = price_range / price_min * 100
 
-    # Mismo algoritmo que analyze_market_multi — sin topes fijos
-    min_gap_usdc = atr * 0.8
-    max_by_range = max(3, int(price_range / min_gap_usdc)) if min_gap_usdc > 0 else 20
-    max_by_cap   = int(capital / 6.0)
+    # Mismo algoritmo de simulación que analyze_market_multi
+    # atr aquí es el ATR ponderado enviado desde el dashboard
+    atr_1h_val   = atr * 0.6   # estimación 1h desde ATR ponderado
+    daily_move   = atr_1h_val * (24 ** 0.5)
+    min_notional = 5.50
+    max_by_cap   = int(capital / min_notional)
+    min_gap_usdc = atr_1h_val * 0.3
+    max_by_range = min(int(price_range / min_gap_usdc) if min_gap_usdc > 0 else 170, 170)
+    max_grids    = min(max_by_cap, max_by_range)
 
-    grid_count        = max(3, min(max_by_range, max_by_cap))
+    best_score = -1
+    best_grids = 3
+    for n in range(2, max_grids + 1):
+        cap_per_order = capital / n
+        if cap_per_order < min_notional: break
+        gap          = price_range / n
+        gap_pct      = gap / ((price_min + price_max) / 2) * 100
+        fills        = min(daily_move / gap, n * 0.5)
+        profit_pct   = gap_pct / 100 - 0.002
+        if profit_pct <= 0: continue
+        score        = fills * cap_per_order * profit_pct
+        if score > best_score:
+            best_score = score
+            best_grids = n
+
+    grid_count        = max(2, best_grids)
     capital_per_order = round(capital / grid_count, 2)
     profit_per_grid   = round(price_range_pct / grid_count, 2)
 
