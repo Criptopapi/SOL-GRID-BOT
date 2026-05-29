@@ -233,25 +233,18 @@ def analyze_market(klines, capital):
     price_range_pct  = price_range / price_min * 100
 
     # ── Grids óptimos según capital ingresado ─────────────────
-    # Capital viene del usuario — usarlo como base real
-    min_order_usdc = max(6.0, current * 0.05)  # mínimo $6 o 5% del precio SOL
+    # Mínimo $6 por orden (requisito Binance)
+    min_order_usdc = 6.0
+    max_by_cap     = int(capital / min_order_usdc)  # límite por capital
 
-    # Grids ideales según ATR: más volátil = menos grids (más espacio entre niveles)
-    # Gap mínimo entre grids = 1.5x ATR para evitar llenados falsos
-    min_gap      = atr * 1.5
-    max_by_range = int(price_range / min_gap)  # grids que caben con gap mínimo
-    max_by_cap   = int(capital / min_order_usdc)  # grids que permite el capital
+    # Límite por volatilidad ATR — más volátil = menos grids
+    if atr_pct < 1.5:    ideal_by_atr = 10
+    elif atr_pct < 2.5:  ideal_by_atr = 8
+    elif atr_pct < 3.5:  ideal_by_atr = 6
+    else:                ideal_by_atr = 5
 
-    # Tomar el menor de los dos límites
-    grid_count = min(max_by_range, max_by_cap)
-
-    # Ajustar por volatilidad ATR
-    if atr_pct < 1.5:    ideal = min(10, max_by_cap)
-    elif atr_pct < 2.5:  ideal = min(8,  max_by_cap)
-    elif atr_pct < 3.5:  ideal = min(6,  max_by_cap)
-    else:                ideal = min(5,  max_by_cap)
-
-    grid_count = max(3, min(grid_count, ideal))
+    # Tomar el menor entre lo que permite el capital y lo que sugiere el ATR
+    grid_count = max(3, min(max_by_cap, ideal_by_atr))
     capital_per_order = round(capital / grid_count, 2)
 
     # ── Modo aritmético vs geométrico según ATR ───────────────
@@ -566,17 +559,15 @@ def recalculate():
     price_range = price_max - price_min
 
     # Mismo algoritmo adaptativo que analyze_market
-    min_order_usdc = max(6.0, price_min * 0.05)
-    min_gap        = atr * 1.5
-    max_by_range   = max(2, int(price_range / min_gap))
-    max_by_cap     = max(2, int(capital / min_order_usdc))
+    min_order_usdc = 6.0
+    max_by_cap     = int(capital / min_order_usdc)
 
-    if atr_pct < 1.5:    ideal = min(10, max_by_cap)
-    elif atr_pct < 2.5:  ideal = min(8,  max_by_cap)
-    elif atr_pct < 3.5:  ideal = min(6,  max_by_cap)
-    else:                ideal = min(5,  max_by_cap)
+    if atr_pct < 1.5:    ideal_by_atr = 10
+    elif atr_pct < 2.5:  ideal_by_atr = 8
+    elif atr_pct < 3.5:  ideal_by_atr = 6
+    else:                ideal_by_atr = 5
 
-    grid_count        = max(3, min(min(max_by_range, max_by_cap), ideal))
+    grid_count        = max(3, min(max_by_cap, ideal_by_atr))
     capital_per_order = round(capital / grid_count, 2)
 
     price_range_pct   = price_range / price_min * 100
