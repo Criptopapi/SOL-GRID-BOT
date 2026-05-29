@@ -550,6 +550,52 @@ def stop():
     state["orders"] = []
     return jsonify({"status": "Bot detenido", "pnl_session": round(state["pnl"], 4)})
 
+@app.route("/recalculate", methods=["POST"])
+def recalculate():
+    """Recalcula grids y ganancias con nuevo capital sin re-analizar indicadores."""
+    body      = request.json or {}
+    capital   = float(body.get("capital", CAPITAL))
+    atr       = float(body.get("atr", 2.0))
+    atr_pct   = float(body.get("atr_pct", 2.0))
+    price_min = float(body.get("price_min", 0))
+    price_max = float(body.get("price_max", 0))
+
+    if not price_min or not price_max:
+        return jsonify({"error": "Faltan price_min y price_max"}), 400
+
+    price_range = price_max - price_min
+
+    # Mismo algoritmo adaptativo que analyze_market
+    min_order_usdc = max(6.0, price_min * 0.05)
+    min_gap        = atr * 1.5
+    max_by_range   = max(2, int(price_range / min_gap))
+    max_by_cap     = max(2, int(capital / min_order_usdc))
+
+    if atr_pct < 1.5:    ideal = min(10, max_by_cap)
+    elif atr_pct < 2.5:  ideal = min(8,  max_by_cap)
+    elif atr_pct < 3.5:  ideal = min(6,  max_by_cap)
+    else:                ideal = min(5,  max_by_cap)
+
+    grid_count        = max(3, min(min(max_by_range, max_by_cap), ideal))
+    capital_per_order = round(capital / grid_count, 2)
+
+    price_range_pct   = price_range / price_min * 100
+    profit_per_grid   = round(price_range_pct / grid_count, 2)
+    fills_factor      = min(0.35, max(0.1, atr_pct / 10))
+    fills_per_day     = grid_count * fills_factor
+    est_daily         = round(fills_per_day * capital_per_order * profit_per_grid / 100, 4)
+    est_monthly       = round(est_daily * 30, 2)
+
+    log(f"Recalculo: capital=${capital} → {grid_count} grids · ${capital_per_order}/orden", "info")
+
+    return jsonify({
+        "grid_count":         grid_count,
+        "capital_per_order":  capital_per_order,
+        "profit_per_grid_pct": profit_per_grid,
+        "est_daily":          est_daily,
+        "est_monthly":        est_monthly,
+    })
+
 @app.route("/price")
 def price():
     p = get_price()

@@ -589,19 +589,59 @@ function renderAnalysis(d){
     Sección Avanzado → <span style="color:var(--accent)">TP: $${d.tp}</span> &nbsp;|&nbsp; <span style="color:var(--danger)">SL: $${d.sl}</span> &nbsp;|&nbsp; ✅ Vender todas las SOL en stop`;
 }
 
-function updateInvestment(){
+async function updateInvestment(){
   if(!lastAnalysis) return;
   const inv = parseFloat(document.getElementById('inv-input').value);
   if(!inv || inv <= 0){ alert('Ingresa un monto válido'); return; }
-  const grids    = lastAnalysis.grid_count;
-  const profit   = lastAnalysis.profit_per_grid_pct;
-  const perOrder = (inv / grids).toFixed(2);
-  const fills    = grids * 0.2;
-  const daily    = (fills * (inv/grids) * profit / 100).toFixed(3);
-  const monthly  = (daily * 30).toFixed(2);
-  document.getElementById('ir-per-order').textContent = '$'+perOrder;
-  document.getElementById('ir-daily').textContent     = '$'+daily;
-  document.getElementById('ir-monthly').textContent   = '$'+monthly;
+
+  // Re-calcular grids óptimos con el nuevo capital en el servidor
+  try{
+    const r = await fetch(BOT_URL + '/recalculate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        capital:   inv,
+        atr:       lastAnalysis.atr,
+        atr_pct:   lastAnalysis.atr_pct,
+        price_min: lastAnalysis.price_min,
+        price_max: lastAnalysis.price_max,
+        profit_per_grid_pct: lastAnalysis.profit_per_grid_pct
+      })
+    });
+    const d = await r.json();
+    if(d.error){ throw new Error(d.error); }
+
+    // Actualizar grids y capital por orden
+    lastAnalysis.grid_count       = d.grid_count;
+    lastAnalysis.capital_per_order = d.capital_per_order;
+    lastAnalysis.profit_per_grid_pct = d.profit_per_grid_pct;
+
+    document.getElementById('p-grids').textContent    = d.grid_count;
+    document.getElementById('p-per-order').textContent = '$'+d.capital_per_order;
+    document.getElementById('ir-per-order').textContent = '$'+d.capital_per_order;
+    document.getElementById('ir-daily').textContent    = '$'+d.est_daily;
+    document.getElementById('ir-monthly').textContent  = '$'+d.est_monthly;
+
+    // Actualizar nota en parámetros Binance
+    const notes = document.getElementById('p-notes');
+    if(notes){
+      notes.innerHTML = notes.innerHTML
+        .replace(/Grids:<\/strong> \d+/, `Grids:<\/strong> ${d.grid_count}`);
+    }
+    addLog(`Capital $${inv} → ${d.grid_count} grids · $${d.capital_per_order}/orden · ~$${d.est_daily}/día`, 'success');
+  } catch(e){
+    // Fallback: calcular localmente si el endpoint falla
+    const grids    = lastAnalysis.grid_count;
+    const profit   = lastAnalysis.profit_per_grid_pct;
+    const perOrder = (inv / grids).toFixed(2);
+    const fills    = grids * 0.2;
+    const daily    = (fills * parseFloat(perOrder) * profit / 100).toFixed(3);
+    const monthly  = (parseFloat(daily) * 30).toFixed(2);
+    document.getElementById('ir-per-order').textContent = '$'+perOrder;
+    document.getElementById('ir-daily').textContent     = '$'+daily;
+    document.getElementById('ir-monthly').textContent   = '$'+monthly;
+    addLog('Cálculo local (sin reconexión al servidor)', 'warn');
+  }
 }
 
 fetchState();
