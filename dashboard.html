@@ -204,12 +204,28 @@ button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
       <div class="metric"><div class="lbl">ATR % precio</div><div class="val" id="i-atr">--</div></div>
       <div class="metric"><div class="lbl">Volatilidad</div><div class="val" id="i-vol">--</div></div>
     </div>
-    <div style="background:var(--surface2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Puntuación de señal</div>
-        <div style="font-size:11px;color:var(--text2)" id="score-detail">--</div>
+    <div style="background:var(--surface2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Puntuación combinada multi-temporalidad</div>
+          <div style="font-size:11px;color:var(--text2)" id="score-detail">--</div>
+        </div>
+        <div id="score-badge" style="font-size:24px;font-weight:700;font-family:monospace;min-width:70px;text-align:right">--/9</div>
       </div>
-      <div id="score-badge" style="font-size:24px;font-weight:700;font-family:monospace;min-width:70px;text-align:right">--/9</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <div style="background:var(--surface);border-radius:6px;padding:6px 8px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:3px">1H · 7 días</div>
+          <div id="score-1h" style="font-size:15px;font-weight:700;font-family:monospace">--</div>
+        </div>
+        <div style="background:var(--surface);border-radius:6px;padding:6px 8px;text-align:center;border:1px solid rgba(0,212,170,0.2)">
+          <div style="font-size:9px;color:var(--accent);margin-bottom:3px">4H · 15 días ★</div>
+          <div id="score-4h" style="font-size:15px;font-weight:700;font-family:monospace">--</div>
+        </div>
+        <div style="background:var(--surface);border-radius:6px;padding:6px 8px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:3px">1D · 30 días</div>
+          <div id="score-1d" style="font-size:15px;font-weight:700;font-family:monospace">--</div>
+        </div>
+      </div>
     </div>
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Bandas de Bollinger</div>
     <div class="bb-bar"><div class="bb-bar-fill" id="bb-fill"></div><div class="bb-bar-price" id="bb-price"></div></div>
@@ -484,15 +500,24 @@ function renderAnalysis(d){
   document.getElementById('i-vol').textContent   = d.volatility+'%';
   document.getElementById('i-vol').className     = 'val '+(d.volatility>10?'red':d.volatility>5?'amber':'green');
 
-  // Score badge
+  // Score badge y temporalidades
   const score = d.score || 0;
   const scoreBadge = document.getElementById('score-badge');
   scoreBadge.textContent = score+'/9';
-  scoreBadge.style.color = score>=6?'var(--accent)':score>=3.5?'var(--amber)':'var(--danger)';
+  scoreBadge.style.color = score>=5?'var(--accent)':score>=3.5?'var(--amber)':'var(--danger)';
+  const bc = d.bullish_count || 0;
   document.getElementById('score-detail').textContent =
-    score>=6 ? '✅ Señal fuerte — buenas condiciones para abrir' :
-    score>=3.5 ? '🟡 Señal moderada — condiciones mixtas' :
-    '🔴 Señal débil — no recomendado abrir';
+    score>=5 && bc>=2 ? `✅ Señal fuerte — ${bc}/3 temporalidades confirman` :
+    score>=3.5 ? `🟡 Señal moderada — ${bc}/3 temporalidades confirman` :
+    `🔴 Señal débil — solo ${bc}/3 temporalidades positivas`;
+
+  const scoreColor = s => s>=5?'var(--accent)':s>=3.5?'var(--amber)':'var(--danger)';
+  const s1h = document.getElementById('score-1h');
+  const s4h = document.getElementById('score-4h');
+  const s1d = document.getElementById('score-1d');
+  if(s1h){ s1h.textContent = (d.score_1h||0)+'/9'; s1h.style.color = scoreColor(d.score_1h||0); }
+  if(s4h){ s4h.textContent = (d.score_4h||0)+'/9'; s4h.style.color = scoreColor(d.score_4h||0); }
+  if(s1d){ s1d.textContent = (d.score_1d||0)+'/9'; s1d.style.color = scoreColor(d.score_1d||0); }
 
   if(d.bb_lower && d.bb_upper){
     const range = d.bb_upper - d.bb_lower;
@@ -504,7 +529,7 @@ function renderAnalysis(d){
   }
 
   document.getElementById('signal-detail').textContent =
-    `Tendencia: ${d.trend} · Soporte: $${d.support} · Resistencia: $${d.resistance} · Riesgo: ${d.risk_level} — ${d.risk_reason}`;
+    `Tendencia: ${d.trend} · Rango: ${d.range_pct||'--'}% · Soporte 30d: $${d.support} · Resistencia 30d: $${d.resistance} · ATR pond.: $${d.atr} (${d.atr_pct}%)`;
 
   // Market situation alert for proposed bot
   let mSit, mIcon, mTitle, mDesc, mConclusion, mBadge, mBadgeClass;

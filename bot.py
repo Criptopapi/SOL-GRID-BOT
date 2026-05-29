@@ -92,8 +92,19 @@ def get_klines(interval="4h", limit=90):
                  "low":  float(k[3]), "close": float(k[4]),
                  "volume": float(k[5])} for k in r.json()]
     except Exception as e:
-        log(f"Error obteniendo klines: {e}", "error")
+        log(f"Error obteniendo klines {interval}: {e}", "error")
         return []
+
+def get_multi_timeframe():
+    """Obtiene datos de 3 temporalidades simultáneamente."""
+    tf = {}
+    # 1h — 168 velas = 7 días
+    tf["1h"] = get_klines("1h", 168)
+    # 4h — 90 velas = 15 días
+    tf["4h"] = get_klines("4h", 90)
+    # 1d — 30 velas = 30 días
+    tf["1d"] = get_klines("1d", 30)
+    return tf
 
 # ── Algoritmo matemático de análisis ──────────────────────────
 def calc_ema(closes, period):
@@ -103,7 +114,349 @@ def calc_ema(closes, period):
         ema = p * k + ema * (1 - k)
     return round(ema, 2)
 
+def calc_rsi(closes, period=14):
+    gains = losses = 0
+    for i in range(len(closes) - period, len(closes)):
+        d = closes[i] - closes[i-1]
+        if d > 0: gains += d
+        else:     losses -= d
+    rs = (gains / period) / (losses / period + 0.001)
+    return round(100 - (100 / (1 + rs)), 1)
+
+def calc_atr(highs, lows, closes, period=14):
+    avg = lambda arr: sum(arr) / len(arr)
+    trs = []
+    for i in range(1, period + 1):
+        tr = max(highs[-i] - lows[-i],
+                 abs(highs[-i] - closes[-i-1]),
+                 abs(lows[-i] - closes[-i-1]))
+        trs.append(tr)
+    return avg(trs)
+
+def analyze_timeframe(klines):
+    """Analiza una temporalidad y devuelve sus métricas clave."""
+    if not klines or len(klines) < 20:
+        return None
+    avg = lambda arr: sum(arr) / len(arr)
+    std = lambda arr: math.sqrt(avg([(x - avg(arr))**2 for x in arr]))
+
+    closes  = [k["close"]  for k in klines]
+    highs   = [k["high"]   for k in klines]
+    lows    = [k["low"]    for k in klines]
+    volumes = [k["volume"] for k in klines]
+
+    current    = closes[-1]
+    ema20      = calc_ema(closes[-min(20,len(closes)):], 20)
+    ema50      = calc_ema(closes[-min(50,len(closes)):], min(50,len(closes)))
+    rsi        = calc_rsi(closes[-15:])
+    atr        = calc_atr(highs, lows, closes)
+    atr_pct    = atr / current * 100
+
+    # MACD
+    ema12      = calc_ema(closes[-min(26,len(closes)):], 12)
+    ema26      = calc_ema(closes[-min(26,len(closes)):], 26)
+    macd_val   = ema12 - ema26
+    macd_bull  = macd_val > 0
+
+    # Bollinger
+    bb_closes  = closes[-20:]
+    bb_mid     = avg(bb_closes)
+    bb_std     = std(bb_closes)
+    bb_upper   = bb_mid + 2 * bb_std
+    bb_lower   = bb_mid - 2 * bb_std
+    bb_pos_pct = (current - bb_lower) / (bb_upper - bb_lower + 0.001) * 100
+
+    # Soporte y resistencia del período completo
+    support    = min(lows)
+    resistance = max(highs)
+
+    # Tendencia
+    mid = len(closes) // 2
+    trend_bull = avg(closes[mid:]) > avg(closes[:mid])
+
+    # Volatilidad histórica
+    volatility = std(closes) / avg(closes) * 100
+
+    # Volumen relativo
+    vol_ratio  = avg(volumes[-5:]) / (avg(volumes[-20:]) + 0.001)
+
+    return {
+        "current": current, "ema20": ema20, "ema50": ema50,
+        "rsi": rsi, "atr": atr, "atr_pct": atr_pct,
+        "macd_bull": macd_bull, "macd_val": macd_val,
+        "bb_upper": bb_upper, "bb_lower": bb_lower, "bb_mid": bb_mid,
+        "bb_pos_pct": bb_pos_pct,
+        "support": support, "resistance": resistance,
+        "trend_bull": trend_bull, "volatility": volatility,
+        "vol_ratio": vol_ratio,
+    }
+
+def score_timeframe(tf):
+    """Puntúa las condiciones de una temporalidad (0-9)."""
+    if not tf: return 0, []
+    score = 0.0
+    reasons = []
+
+    # RSI (peso 3)
+    if 40 <= tf["rsi"] <= 60:
+        score += 3.0; reasons.append(f"RSI ideal ({tf['rsi']})")
+    elif 33 <= tf["rsi"] <= 67:
+        score += 1.5; reasons.append(f"RSI aceptable ({tf['rsi']})")
+    elif tf["rsi"] > 75 or tf["rsi"] < 25:
+        score -= 2.0; reasons.append(f"RSI extremo ({tf['rsi']})")
+
+    # MACD (peso 2)
+    if tf["macd_bull"]:
+        score += 2.0; reasons.append("MACD alcista")
+    else:
+        score -= 0.5; reasons.append("MACD bajista")
+
+    # Bollinger posición (peso 1.5)
+    if 25 <= tf["bb_pos_pct"] <= 75:
+        score += 1.5; reasons.append("Precio en centro Bollinger")
+    elif tf["bb_pos_pct"] < 10 or tf["bb_pos_pct"] > 90:
+        score -= 0.5; reasons.append("Precio en extremo Bollinger")
+
+    # EMA tendencia (peso 1.5)
+    if tf["ema20"] > tf["ema50"]:
+        score += 1.5; reasons.append("EMA20 > EMA50 (alcista)")
+    else:
+        score += 0.5; reasons.append("EMA20 < EMA50 (bajista)")
+
+    # ATR volatilidad (peso 1)
+    if tf["atr_pct"] < 1.5:
+        score += 1.0; reasons.append(f"ATR bajo ({tf['atr_pct']:.1f}%)")
+    elif tf["atr_pct"] < 3.0:
+        score += 0.5; reasons.append(f"ATR moderado ({tf['atr_pct']:.1f}%)")
+    else:
+        score -= 0.5; reasons.append(f"ATR alto ({tf['atr_pct']:.1f}%)")
+
+    return round(score, 1), reasons
+
 def analyze_market(klines, capital):
+    """Wrapper para compatibilidad — usa multi-timeframe internamente."""
+    # Obtener las 3 temporalidades
+    tf_data = get_multi_timeframe()
+
+    # Si alguna falla, usar los klines de 4h que ya tenemos
+    if not tf_data["4h"]: tf_data["4h"] = klines
+    if not tf_data["1h"]: tf_data["1h"] = klines
+    if not tf_data["1d"]: tf_data["1d"] = klines
+
+    return analyze_market_multi(tf_data, capital)
+
+def analyze_market_multi(tf_data, capital):
+    """Análisis completo multi-temporalidad."""
+    avg = lambda arr: sum(arr) / len(arr)
+
+    tf1h = analyze_timeframe(tf_data.get("1h", []))
+    tf4h = analyze_timeframe(tf_data.get("4h", []))
+    tf1d = analyze_timeframe(tf_data.get("1d", []))
+
+    # Usar 4h como referencia principal si alguna falla
+    ref = tf4h or tf1h or tf1d
+    if not ref:
+        return {"error": "No hay datos suficientes"}
+
+    current = ref["current"]
+
+    # ── Puntuaciones por temporalidad ──────────────────────────
+    score1h, reasons1h = score_timeframe(tf1h)
+    score4h, reasons4h = score_timeframe(tf4h)
+    score1d, reasons1d = score_timeframe(tf1d)
+
+    # Puntuación combinada ponderada:
+    # 1h = 20% (corto plazo, ruido), 4h = 50% (principal), 1d = 30% (macro)
+    score_combined = score1h * 0.20 + score4h * 0.50 + score1d * 0.30
+    score_combined = round(score_combined, 1)
+
+    # Confirmación multi-temporal: cuántas TF están de acuerdo
+    bullish_count = sum([
+        1 if tf1h and score1h >= 4 else 0,
+        1 if tf4h and score4h >= 4 else 0,
+        1 if tf1d and score1d >= 4 else 0,
+    ])
+
+    # ── Rango del grid basado en datos reales históricos ──────
+    # Soporte: mínimo real de 30 días (1d) — donde el precio ha rebotado
+    # Resistencia: máximo real de 30 días (1d) — donde el precio ha frenado
+    support_1d    = tf1d["support"]    if tf1d else current * 0.90
+    resistance_1d = tf1d["resistance"] if tf1d else current * 1.10
+
+    # Rango de 15 días (4h) para el grid — más conservador
+    support_4h    = tf4h["support"]    if tf4h else current * 0.92
+    resistance_4h = tf4h["resistance"] if tf4h else current * 1.08
+
+    # Rango de 7 días (1h) para validar zona actual
+    support_1h    = tf1h["support"]    if tf1h else current * 0.95
+    resistance_1h = tf1h["resistance"] if tf1h else current * 1.05
+
+    # ATR ponderado por temporalidad
+    atr_1h  = tf1h["atr"] if tf1h else 0
+    atr_4h  = tf4h["atr"] if tf4h else 0
+    atr_1d  = tf1d["atr"] if tf1d else 0
+    # ATR representativo: 4h como base, ajustado por 1d
+    atr_weighted = atr_4h * 0.6 + atr_1d * 0.3 + atr_1h * 0.1
+    atr_pct      = round(atr_weighted / current * 100, 2)
+
+    # ── Definir rango del grid ─────────────────────────────────
+    # Precio mínimo: soporte de 15 días con buffer de 1x ATR ponderado
+    # Precio máximo: resistencia de 15 días con buffer de 0.5x ATR
+    # El objetivo es que el rango capture el 80% de la oscilación real
+    price_min = round(max(support_4h - atr_weighted * 0.5,
+                          support_1d * 0.97), 2)
+    price_max = round(min(resistance_4h + atr_weighted * 0.3,
+                          resistance_1d * 1.03), 2)
+
+    # Garantizar que el precio actual esté dentro del rango
+    if current <= price_min: price_min = round(current * 0.92, 2)
+    if current >= price_max: price_max = round(current * 1.08, 2)
+
+    # Garantizar mínimo 10% de rango para que sea viable
+    range_pct = (price_max - price_min) / current * 100
+    if range_pct < 10:
+        center    = (price_min + price_max) / 2
+        price_min = round(center * 0.95, 2)
+        price_max = round(center * 1.05, 2)
+        range_pct = 10.0
+
+    price_range = price_max - price_min
+
+    # ── Número de grids óptimo ─────────────────────────────────
+    # Gap mínimo entre grids = 0.5x ATR ponderado
+    # (menos restrictivo que antes — permite más grids en rango amplio)
+    min_gap      = atr_weighted * 0.5
+    max_by_range = max(3, int(price_range / min_gap))
+
+    # Límite por capital ($6 mínimo por orden)
+    max_by_cap   = int(capital / 6.0)
+
+    # Límite por ATR% — más volátil = menos grids
+    if atr_pct < 1.0:    ideal_by_atr = 15
+    elif atr_pct < 1.5:  ideal_by_atr = 12
+    elif atr_pct < 2.5:  ideal_by_atr = 10
+    elif atr_pct < 3.5:  ideal_by_atr = 7
+    else:                ideal_by_atr = 5
+
+    grid_count = max(3, min(max_by_range, max_by_cap, ideal_by_atr))
+    capital_per_order = round(capital / grid_count, 2)
+
+    # ── Modo aritmético vs geométrico ─────────────────────────
+    # Geométrico: mejor cuando el rango es amplio (>12%) o ATR alto
+    grid_mode = "geometrico" if range_pct > 12 or atr_pct > 2.5 else "aritmetico"
+
+    # ── Ganancia estimada ──────────────────────────────────────
+    profit_per_grid = round(range_pct / grid_count, 2)
+    # Fills diarios según ATR vs gap entre grids
+    gap_per_grid  = price_range / grid_count
+    fills_per_day = round(min(grid_count * 0.4, atr_weighted * 2 / gap_per_grid), 2)
+    est_daily     = round(fills_per_day * capital_per_order * profit_per_grid / 100, 4)
+
+    # ── TP y SL basados en historial real ─────────────────────
+    # SL: 1 ATR ponderado por debajo del soporte de 30 días
+    sl = round(support_1d - atr_weighted * 1.0, 2)
+    # TP: resistencia de 30 días + 0.5 ATR
+    tp = round(resistance_1d + atr_weighted * 0.5, 2)
+
+    # Límite SL: máximo 12% de pérdida del capital
+    sl_pct = (current - sl) / current * 100
+    if sl_pct > 12:
+        sl     = round(current * 0.88, 2)
+        sl_pct = 12.0
+
+    # ── Señal final ────────────────────────────────────────────
+    avoid_conditions = (
+        (tf4h and (tf4h["rsi"] > 78 or tf4h["rsi"] < 22)) or
+        (tf1d and (tf1d["rsi"] > 75 or tf1d["rsi"] < 25)) or
+        atr_pct > 6.0
+    )
+
+    if avoid_conditions:
+        signal        = "AVOID"
+        signal_reason = f"Condición extrema en al menos una TF. RSI o ATR fuera de rango."
+    elif score_combined >= 5.0 and bullish_count >= 2:
+        signal        = "OPEN"
+        signal_reason = f"Score {score_combined}/9 confirmado en {bullish_count}/3 temporalidades."
+    elif score_combined >= 3.5 or bullish_count >= 1:
+        signal        = "WAIT"
+        signal_reason = f"Score {score_combined}/9, solo {bullish_count}/3 TF confirman. Esperar."
+    else:
+        signal        = "AVOID"
+        signal_reason = f"Score bajo ({score_combined}/9). Señales negativas en múltiples TF."
+
+    # ── Riesgo ─────────────────────────────────────────────────
+    if atr_pct > 3.5 or score_combined < 3:
+        risk_level  = "HIGH"
+        risk_reason = f"ATR {atr_pct}%, score {score_combined}/9."
+    elif atr_pct > 2.0 or score_combined < 5:
+        risk_level  = "MEDIUM"
+        risk_reason = f"ATR {atr_pct}%, score {score_combined}/9."
+    else:
+        risk_level  = "LOW"
+        risk_reason = f"ATR {atr_pct}%, score {score_combined}/9 en {bullish_count}/3 TF."
+
+    # ── Tendencia consolidada ──────────────────────────────────
+    trend_votes = sum([
+        1 if tf1h and tf1h["trend_bull"] else 0,
+        1 if tf4h and tf4h["trend_bull"] else 0,
+        1 if tf1d and tf1d["trend_bull"] else 0,
+    ])
+    trend = "alcista" if trend_votes >= 2 else "bajista"
+
+    # Indicadores de referencia (4h como principal)
+    ref_rsi  = tf4h["rsi"]      if tf4h else (tf1h["rsi"]  if tf1h else 50)
+    ref_ema20 = tf4h["ema20"]   if tf4h else current
+    ref_ema50 = tf4h["ema50"]   if tf4h else current
+    ref_macd  = tf4h["macd_bull"] if tf4h else True
+    ref_bb_u  = tf4h["bb_upper"]  if tf4h else current * 1.05
+    ref_bb_l  = tf4h["bb_lower"]  if tf4h else current * 0.95
+    ref_bb_m  = tf4h["bb_mid"]    if tf4h else current
+    ref_vol   = tf4h["volatility"] if tf4h else 3.0
+
+    log(f"Multi-TF: 1h={score1h} 4h={score4h} 1d={score1d} → Combined={score_combined} | "
+        f"Rango ${price_min}-${price_max} ({range_pct:.1f}%) | {grid_count} grids", "info")
+
+    return {
+        "signal":                      signal,
+        "signal_reason":               signal_reason,
+        "price_min":                   price_min,
+        "price_max":                   price_max,
+        "grid_count":                  grid_count,
+        "grid_mode":                   grid_mode,
+        "capital_per_order":           capital_per_order,
+        "profit_per_grid_pct":         profit_per_grid,
+        "estimated_daily_profit_usdc": est_daily,
+        "risk_level":                  risk_level,
+        "risk_reason":                 risk_reason,
+        "tp":                          tp,
+        "sl":                          sl,
+        "sl_pct":                      round(sl_pct, 1),
+        "score":                       score_combined,
+        "score_1h":                    score1h,
+        "score_4h":                    score4h,
+        "score_1d":                    score1d,
+        "bullish_count":               bullish_count,
+        "rsi":                         ref_rsi,
+        "ema20":                       round(ref_ema20, 2),
+        "ema50":                       round(ref_ema50, 2),
+        "macd_bull":                   ref_macd,
+        "macd_signal":                 "Alcista" if ref_macd else "Bajista",
+        "atr":                         round(atr_weighted, 2),
+        "atr_pct":                     atr_pct,
+        "bb_upper":                    round(ref_bb_u, 2),
+        "bb_mid":                      round(ref_bb_m, 2),
+        "bb_lower":                    round(ref_bb_l, 2),
+        "volatility":                  round(ref_vol, 2),
+        "support":                     round(support_1d, 2),
+        "resistance":                  round(resistance_1d, 2),
+        "support_4h":                  round(support_4h, 2),
+        "resistance_4h":               round(resistance_4h, 2),
+        "trend":                       trend,
+        "current_price":               round(current, 2),
+        "range_pct":                   round(range_pct, 1),
+        "rebalance_trigger":           f"Si SOL cae bajo ${sl} o sube sobre ${tp}",
+        "timeframes":                  {"1h": score1h, "4h": score4h, "1d": score1d},
+    }
     closes  = [k["close"]  for k in klines]
     highs   = [k["high"]   for k in klines]
     lows    = [k["low"]    for k in klines]
@@ -490,17 +843,21 @@ def get_state():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    log("Iniciando análisis de mercado...", "info")
-    klines = get_klines()
-    if not klines:
-        return jsonify({"error": "No se pudieron obtener datos de Binance"}), 500
-    # Usar capital del body si se envía, sino usar el default
+    log("Iniciando análisis multi-temporalidad (1h / 4h / 1d)...", "info")
     body    = request.json or {}
     capital = float(body.get("capital", CAPITAL))
-    result  = analyze_market(klines, capital)
+
+    tf_data = get_multi_timeframe()
+    if not any(tf_data.values()):
+        return jsonify({"error": "No se pudieron obtener datos de Binance"}), 500
+
+    result = analyze_market_multi(tf_data, capital)
     state["grid_params"]   = result
     state["last_analysis"] = time.time()
-    log(f"Análisis — Señal: {result['signal']} | Score: {result['score']}/9 | Grids: {result['grid_count']} | Capital/orden: ${result['capital_per_order']}", "success")
+    log(f"Análisis completo — Señal: {result['signal']} | Score: {result['score']}/9 | "
+        f"Scores: 1h={result['score_1h']} 4h={result['score_4h']} 1d={result['score_1d']} | "
+        f"Rango: ${result['price_min']}-${result['price_max']} ({result['range_pct']}%) | "
+        f"{result['grid_count']} grids @ ${result['capital_per_order']}/orden", "success")
     return jsonify(result)
 
 @app.route("/start", methods=["POST"])
