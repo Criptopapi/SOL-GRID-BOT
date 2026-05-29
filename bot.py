@@ -116,7 +116,7 @@ def analyze_market(klines, capital):
     trend      = "alcista" if avg(closes[-20:]) > avg(closes[-50:-20]) else "bajista"
     volatility = std(closes) / avg(closes) * 100
 
-    # Soporte/resistencia con más historia (60 velas = ~10 días en 4h)
+    # Soporte/resistencia 60 velas (~10 días en 4h)
     support    = min(lows[-60:])
     resistance = max(highs[-60:])
 
@@ -134,99 +134,158 @@ def analyze_market(klines, capital):
     ema50 = calc_ema(closes[-50:], 50)
 
     # MACD (EMA12 - EMA26)
-    ema12 = calc_ema(closes[-26:], 12)
-    ema26 = calc_ema(closes[-26:], 26)
-    macd_val = ema12 - ema26
+    ema12     = calc_ema(closes[-26:], 12)
+    ema26     = calc_ema(closes[-26:], 26)
+    macd_val  = ema12 - ema26
     macd_bull = macd_val > 0
     macd_signal_txt = "Alcista" if macd_bull else "Bajista"
 
-    # ATR(14) - volatilidad real en dólares
+    # ATR(14) — volatilidad real en dólares
     trs = []
     for i in range(1, 15):
         tr = max(highs[-i] - lows[-i],
                  abs(highs[-i] - closes[-i-1]),
                  abs(lows[-i] - closes[-i-1]))
         trs.append(tr)
-    atr = round(avg(trs), 2)
+    atr     = avg(trs)
+    atr_pct = atr / current * 100  # ATR como % del precio
 
     # Bandas de Bollinger (20 periodos, 2 std)
     bb_closes = closes[-20:]
-    bb_mid    = avg(bb_closes)
+    bb_mid_v  = avg(bb_closes)
     bb_std    = std(bb_closes)
-    bb_upper  = round(bb_mid + 2 * bb_std, 2)
-    bb_lower  = round(bb_mid - 2 * bb_std, 2)
-    bb_mid    = round(bb_mid, 2)
+    bb_upper  = round(bb_mid_v + 2 * bb_std, 2)
+    bb_lower  = round(bb_mid_v - 2 * bb_std, 2)
+    bb_mid_v  = round(bb_mid_v, 2)
+
+    # ── Puntuación ponderada de señal ─────────────────────────
+    # Cada indicador aporta un peso según la fuerza de su señal
+    score = 0.0
+
+    # RSI: peso 3 — más importante en mercados laterales
+    if 40 <= rsi <= 60:   score += 3.0   # zona ideal
+    elif 35 <= rsi <= 65: score += 2.0   # zona aceptable
+    elif 30 <= rsi <= 70: score += 1.0   # zona límite
+    else:                 score -= 2.0   # extremo — penalizar
+
+    # MACD: peso 2
+    if macd_bull:
+        score += 2.0
+        if abs(macd_val) > atr * 0.1: score += 0.5  # señal fuerte
+    else:
+        score -= 0.5  # bajista penaliza menos (grids también ganan bajando)
+
+    # EMA 20 vs 50: peso 1.5
+    ema_diff_pct = abs(ema20 - ema50) / ema50 * 100
+    if ema20 > ema50 and ema_diff_pct < 3: score += 1.5   # alcista moderado = ideal
+    elif ema20 > ema50:                    score += 0.5   # alcista fuerte = menos ideal
+    else:                                  score += 0.8   # bajista también puede funcionar
+
+    # Bollinger: peso 1.5 — precio en zona central = mejor
+    bb_range   = bb_upper - bb_lower
+    bb_pos_pct = (current - bb_lower) / (bb_range + 0.001) * 100
+    if 30 <= bb_pos_pct <= 70: score += 1.5   # centro de bandas
+    elif 20 <= bb_pos_pct <= 80: score += 0.8
+    else:                        score -= 0.5  # en los bordes
+
+    # Volatilidad ATR: peso 1 — baja volatilidad = mejor para grid
+    if atr_pct < 1.5:   score += 1.0
+    elif atr_pct < 2.5: score += 0.5
+    elif atr_pct > 4.0: score -= 1.0
+
+    # Volumen: peso 0.5 — volumen creciente confirma movimiento
+    vol_ratio = avg(volumes[-5:]) / (avg(volumes[-20:]) + 0.001)
+    if 0.8 <= vol_ratio <= 1.5: score += 0.5  # volumen normal = estable
 
     # ── Decisión de señal ──────────────────────────────────────
-    score = 0  # positivo = mejor para abrir
-
-    if rsi < 65 and rsi > 30: score += 2
-    if macd_bull: score += 1
-    if ema20 > ema50: score += 1  # tendencia alcista
-    if current > bb_lower and current < bb_upper: score += 1
-    if volatility < 10: score += 1
-
-    if rsi > 75 or rsi < 25:
-        signal = "AVOID"
-        signal_reason = f"RSI extremo ({rsi:.1f}). Alto riesgo de movimiento brusco."
-    elif volatility > 15:
-        signal = "AVOID"
-        signal_reason = f"Volatilidad muy alta ({volatility:.1f}%). Grid puede salirse del rango."
-    elif score >= 4:
-        signal = "OPEN"
-        signal_reason = f"RSI neutro ({rsi:.1f}), MACD {macd_signal_txt.lower()}, volatilidad {volatility:.1f}%."
-    elif score >= 2:
-        signal = "WAIT"
-        signal_reason = f"Condiciones mixtas. RSI {rsi:.1f}, volatilidad {volatility:.1f}%."
+    if rsi > 78 or rsi < 22:
+        signal        = "AVOID"
+        signal_reason = f"RSI extremo ({rsi:.1f}). Movimiento brusco inminente."
+    elif atr_pct > 5.0:
+        signal        = "AVOID"
+        signal_reason = f"Volatilidad ATR muy alta ({atr_pct:.1f}%). Grid se saldría rápido."
+    elif score >= 6.0:
+        signal        = "OPEN"
+        signal_reason = f"Puntuación alta ({score:.1f}/9). RSI {rsi:.1f}, MACD {macd_signal_txt.lower()}, ATR {atr_pct:.1f}%."
+    elif score >= 3.5:
+        signal        = "WAIT"
+        signal_reason = f"Condiciones mixtas (puntuación {score:.1f}/9). Esperar confirmación."
     else:
-        signal = "AVOID"
-        signal_reason = f"Señales negativas. MACD bajista, RSI {rsi:.1f}."
+        signal        = "AVOID"
+        signal_reason = f"Puntuación baja ({score:.1f}/9). Señales negativas combinadas."
 
-    # ── Rango del grid: asimétrico (más espacio abajo que arriba) ──
-    # 60% del rango hacia abajo, 40% hacia arriba (precio cae más fácil)
-    atr_multi  = 3.5  # más conservador
-    range_down = atr * atr_multi * 1.2  # más espacio abajo
-    range_up   = atr * atr_multi * 0.8
+    # ── Rango del grid con ATR asimétrico ─────────────────────
+    # Más espacio abajo (precio cae más rápido que sube)
+    # Multiplicador dinámico: más volátil = rango más amplio
+    atr_multi  = max(3.0, min(5.0, 4.0 / (atr_pct + 0.1)))
+    range_down = atr * atr_multi * 1.3   # 60% hacia abajo
+    range_up   = atr * atr_multi * 0.9   # 40% hacia arriba
 
-    price_min  = round(max(current - range_down, support * 0.96), 2)
-    price_max  = round(min(current + range_up,   resistance * 1.04), 2)
+    price_min = round(max(current - range_down, support  * 0.96), 2)
+    price_max = round(min(current + range_up,   resistance * 1.04), 2)
 
-    # Garantizar mínimo 8% de rango total
+    # Garantizar mínimo 8% de rango
     if (price_max - price_min) / current < 0.08:
-        price_min = round(current * 0.93, 2)
-        price_max = round(current * 1.07, 2)
+        price_min = round(current * 0.94, 2)
+        price_max = round(current * 1.06, 2)
 
-    # ── Grillas ────────────────────────────────────────────────
-    max_grids = int(capital / 6)  # mínimo $6 por orden
-    if volatility < 5:   grid_count = min(max_grids, 8)
-    elif volatility < 8: grid_count = min(max_grids, 6)
-    else:                grid_count = min(max_grids, 5)
-    grid_count = max(grid_count, 3)
+    price_range      = price_max - price_min
+    price_range_pct  = price_range / price_min * 100
 
-    # ── Modo aritmético vs geométrico ──────────────────────────
-    price_range_pct = (price_max - price_min) / price_min * 100
-    grid_mode = "geometrico" if price_range_pct > 15 else "aritmetico"
+    # ── Grids óptimos según capital ingresado ─────────────────
+    # Capital viene del usuario — usarlo como base real
+    min_order_usdc = max(6.0, current * 0.05)  # mínimo $6 o 5% del precio SOL
+
+    # Grids ideales según ATR: más volátil = menos grids (más espacio entre niveles)
+    # Gap mínimo entre grids = 1.5x ATR para evitar llenados falsos
+    min_gap      = atr * 1.5
+    max_by_range = int(price_range / min_gap)  # grids que caben con gap mínimo
+    max_by_cap   = int(capital / min_order_usdc)  # grids que permite el capital
+
+    # Tomar el menor de los dos límites
+    grid_count = min(max_by_range, max_by_cap)
+
+    # Ajustar por volatilidad ATR
+    if atr_pct < 1.5:    ideal = min(10, max_by_cap)
+    elif atr_pct < 2.5:  ideal = min(8,  max_by_cap)
+    elif atr_pct < 3.5:  ideal = min(6,  max_by_cap)
+    else:                ideal = min(5,  max_by_cap)
+
+    grid_count = max(3, min(grid_count, ideal))
+    capital_per_order = round(capital / grid_count, 2)
+
+    # ── Modo aritmético vs geométrico según ATR ───────────────
+    # Geométrico si ATR > 2% del precio (rango amplio y variable)
+    grid_mode = "geometrico" if atr_pct > 2.0 else "aritmetico"
 
     # ── Ganancia estimada ──────────────────────────────────────
-    profit_per_grid   = round(price_range_pct / grid_count, 2)
-    fills_per_day     = grid_count * 0.2
-    capital_per_order = capital / grid_count
-    est_daily         = round(fills_per_day * capital_per_order * profit_per_grid / 100, 4)
+    profit_per_grid = round(price_range_pct / grid_count, 2)
+    # Fills estimados: más fills con volatilidad moderada
+    fills_factor  = min(0.35, max(0.1, atr_pct / 10))
+    fills_per_day = grid_count * fills_factor
+    est_daily     = round(fills_per_day * capital_per_order * profit_per_grid / 100, 4)
 
-    # ── TP y SL ────────────────────────────────────────────────
-    tp = round(price_max * 1.01, 2)   # 1% sobre el máximo del grid
-    sl = round(price_min * 0.97, 2)   # 3% bajo el mínimo del grid (protege capital)
+    # ── TP y SL dinámicos basados en ATR ──────────────────────
+    # SL = mínimo del grid - 1.5x ATR (margen real de ruido del mercado)
+    # TP = máximo del grid + 0.5x ATR
+    sl = round(price_min - atr * 1.5, 2)
+    tp = round(price_max + atr * 0.5, 2)
 
-    # ── Riesgo ─────────────────────────────────────────────────
-    if volatility > 10 or rsi > 68 or rsi < 32:
+    # Verificar que SL no sea más del 15% de pérdida del capital
+    sl_pct = (current - sl) / current * 100
+    if sl_pct > 15:
+        sl = round(current * 0.85, 2)  # máximo 15% de pérdida
+
+    # ── Nivel de riesgo ────────────────────────────────────────
+    if atr_pct > 3.5 or rsi > 70 or rsi < 30 or score < 3:
         risk_level  = "HIGH"
-        risk_reason = f"Volatilidad {volatility:.1f}% o RSI extremo ({rsi:.1f})."
-    elif volatility > 6 or abs(rsi - 50) > 15:
+        risk_reason = f"ATR {atr_pct:.1f}%, RSI {rsi:.1f}, puntuación {score:.1f}/9."
+    elif atr_pct > 2.0 or abs(rsi - 50) > 15 or score < 5:
         risk_level  = "MEDIUM"
-        risk_reason = f"Volatilidad moderada ({volatility:.1f}%)."
+        risk_reason = f"ATR moderado {atr_pct:.1f}%, RSI {rsi:.1f}."
     else:
         risk_level  = "LOW"
-        risk_reason = f"Mercado estable. RSI neutro ({rsi:.1f}), volatilidad baja."
+        risk_reason = f"ATR bajo {atr_pct:.1f}%, RSI neutro {rsi:.1f}, puntuación {score:.1f}/9."
 
     return {
         "signal":                      signal,
@@ -235,20 +294,24 @@ def analyze_market(klines, capital):
         "price_max":                   price_max,
         "grid_count":                  grid_count,
         "grid_mode":                   grid_mode,
+        "capital_per_order":           capital_per_order,
         "profit_per_grid_pct":         profit_per_grid,
         "estimated_daily_profit_usdc": est_daily,
         "risk_level":                  risk_level,
         "risk_reason":                 risk_reason,
         "tp":                          tp,
         "sl":                          sl,
+        "sl_pct":                      round(sl_pct, 1),
+        "score":                       round(score, 1),
         "rsi":                         round(rsi, 1),
         "ema20":                       ema20,
         "ema50":                       ema50,
         "macd_bull":                   macd_bull,
         "macd_signal":                 macd_signal_txt,
-        "atr":                         atr,
+        "atr":                         round(atr, 2),
+        "atr_pct":                     round(atr_pct, 2),
         "bb_upper":                    bb_upper,
-        "bb_mid":                      bb_mid,
+        "bb_mid":                      bb_mid_v,
         "bb_lower":                    bb_lower,
         "volatility":                  round(volatility, 2),
         "support":                     round(support, 2),
@@ -438,10 +501,13 @@ def analyze():
     klines = get_klines()
     if not klines:
         return jsonify({"error": "No se pudieron obtener datos de Binance"}), 500
-    result = analyze_market(klines, CAPITAL)
+    # Usar capital del body si se envía, sino usar el default
+    body    = request.json or {}
+    capital = float(body.get("capital", CAPITAL))
+    result  = analyze_market(klines, capital)
     state["grid_params"]   = result
     state["last_analysis"] = time.time()
-    log(f"Análisis completo — Señal: {result['signal']} | RSI: {result['rsi']} | Volatilidad: {result['volatility']}%", "success")
+    log(f"Análisis — Señal: {result['signal']} | Score: {result['score']}/9 | Grids: {result['grid_count']} | Capital/orden: ${result['capital_per_order']}", "success")
     return jsonify(result)
 
 @app.route("/start", methods=["POST"])

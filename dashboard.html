@@ -201,8 +201,15 @@ button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
       <div class="metric"><div class="lbl">EMA 20</div><div class="val" id="i-ema20">--</div></div>
       <div class="metric"><div class="lbl">EMA 50</div><div class="val" id="i-ema50">--</div></div>
       <div class="metric"><div class="lbl">MACD</div><div class="val" id="i-macd">--</div></div>
-      <div class="metric"><div class="lbl">ATR(14)</div><div class="val" id="i-atr">--</div></div>
+      <div class="metric"><div class="lbl">ATR % precio</div><div class="val" id="i-atr">--</div></div>
       <div class="metric"><div class="lbl">Volatilidad</div><div class="val" id="i-vol">--</div></div>
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Puntuación de señal</div>
+        <div style="font-size:11px;color:var(--text2)" id="score-detail">--</div>
+      </div>
+      <div id="score-badge" style="font-size:24px;font-weight:700;font-family:monospace;min-width:70px;text-align:right">--/9</div>
     </div>
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Bandas de Bollinger</div>
     <div class="bb-bar"><div class="bb-bar-fill" id="bb-fill"></div><div class="bb-bar-price" id="bb-price"></div></div>
@@ -229,7 +236,7 @@ button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
       <div class="param-item">
         <div class="p-label">⊞ Cantidad de Grids</div>
         <div class="p-value white" id="p-grids">--</div>
-        <div class="p-sub">Campo "Cantidad de grids"</div>
+        <div class="p-sub">Capital por orden: <span id="p-per-order" style="color:var(--accent)">--</span></div>
       </div>
       <div class="param-item">
         <div class="p-label">⚙ Modo</div>
@@ -443,7 +450,12 @@ async function analyze(){
   btn.textContent = '⏳ Analizando indicadores...';
   addLog('Analizando mercado con RSI, EMA, MACD, ATR, Bollinger...', 'info');
   try{
-    const r = await fetch(BOT_URL + '/analyze', {method:'POST'});
+    const capital = parseFloat(document.getElementById('inv-input').value) || 60;
+    const r = await fetch(BOT_URL + '/analyze', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({capital: capital})
+    });
     const d = await r.json();
     if(d.error){ addLog('Error: ' + d.error, 'error'); return; }
     lastAnalysis = d;
@@ -467,9 +479,20 @@ function renderAnalysis(d){
   document.getElementById('i-ema50').textContent = '$'+d.ema50;
   document.getElementById('i-macd').textContent  = d.macd_signal;
   document.getElementById('i-macd').className    = 'val '+(d.macd_bull?'green':'red');
-  document.getElementById('i-atr').textContent   = '$'+d.atr;
+  document.getElementById('i-atr').textContent   = (d.atr_pct||d.atr)+'%';
+  document.getElementById('i-atr').className     = 'val '+(d.atr_pct>3.5?'red':d.atr_pct>2?'amber':'green');
   document.getElementById('i-vol').textContent   = d.volatility+'%';
   document.getElementById('i-vol').className     = 'val '+(d.volatility>10?'red':d.volatility>5?'amber':'green');
+
+  // Score badge
+  const score = d.score || 0;
+  const scoreBadge = document.getElementById('score-badge');
+  scoreBadge.textContent = score+'/9';
+  scoreBadge.style.color = score>=6?'var(--accent)':score>=3.5?'var(--amber)':'var(--danger)';
+  document.getElementById('score-detail').textContent =
+    score>=6 ? '✅ Señal fuerte — buenas condiciones para abrir' :
+    score>=3.5 ? '🟡 Señal moderada — condiciones mixtas' :
+    '🔴 Señal débil — no recomendado abrir';
 
   if(d.bb_lower && d.bb_upper){
     const range = d.bb_upper - d.bb_lower;
@@ -531,6 +554,7 @@ function renderAnalysis(d){
   document.getElementById('p-min').textContent   = '$'+d.price_min;
   document.getElementById('p-max').textContent   = '$'+d.price_max;
   document.getElementById('p-grids').textContent = d.grid_count;
+  document.getElementById('p-per-order').textContent = d.capital_per_order ? '$'+d.capital_per_order : '--';
   document.getElementById('p-tp').textContent    = '$'+d.tp;
   document.getElementById('p-sl').textContent    = '$'+d.sl;
 
