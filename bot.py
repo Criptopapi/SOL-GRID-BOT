@@ -322,24 +322,29 @@ def analyze_market_multi(tf_data, capital):
 
     price_range = price_max - price_min
 
-    # ── Número de grids óptimo ─────────────────────────────────
-    # Gap mínimo entre grids = 0.5x ATR ponderado
-    # (menos restrictivo que antes — permite más grids en rango amplio)
-    min_gap      = atr_weighted * 0.5
-    max_by_range = max(3, int(price_range / min_gap))
+    # ── Número de grids óptimo — sin topes fijos ─────────────
+    #
+    # Regla: gap entre grids debe ser >= 0.8x ATR ponderado
+    # para que cada grid capture un movimiento real, no ruido.
+    # Si el gap es muy pequeño, las órdenes se llenan y des-llenan
+    # por volatilidad aleatoria sin generar ganancia neta.
+    #
+    # Fórmula:
+    #   max_by_range = rango / (0.8 * ATR)  → grids que caben con gap mínimo
+    #   max_by_cap   = capital / 6           → grids que financia el capital
+    #   grid_count   = min(max_by_range, max_by_cap)
+    #
+    # Sin techo artificial — si el mercado y el capital permiten 15, son 15.
 
-    # Límite por capital ($6 mínimo por orden)
-    max_by_cap   = int(capital / 6.0)
+    min_gap_usdc = atr_weighted * 0.8        # gap mínimo en dólares
+    max_by_range = int(price_range / min_gap_usdc) if min_gap_usdc > 0 else 20
+    max_by_cap   = int(capital / 6.0)        # mínimo $6 por orden (Binance)
 
-    # Límite por ATR% — más volátil = menos grids
-    if atr_pct < 1.0:    ideal_by_atr = 15
-    elif atr_pct < 1.5:  ideal_by_atr = 12
-    elif atr_pct < 2.5:  ideal_by_atr = 10
-    elif atr_pct < 3.5:  ideal_by_atr = 7
-    else:                ideal_by_atr = 5
-
-    grid_count = max(3, min(max_by_range, max_by_cap, ideal_by_atr))
+    grid_count        = max(3, min(max_by_range, max_by_cap))
     capital_per_order = round(capital / grid_count, 2)
+
+    log(f"Grids: rango=${price_range:.2f} / gap_min=${min_gap_usdc:.2f} = {max_by_range} por rango | "
+        f"capital ${capital} / $6 = {max_by_cap} por capital → {grid_count} grids", "info")
 
     # ── Modo aritmético vs geométrico ─────────────────────────
     # Geométrico: mejor cuando el rango es amplio (>12%) o ATR alto
@@ -902,7 +907,7 @@ def stop():
 
 @app.route("/recalculate", methods=["POST"])
 def recalculate():
-    """Recalcula grids y ganancias con nuevo capital sin re-analizar indicadores."""
+    """Recalcula grids con nuevo capital usando el mismo algoritmo multi-TF."""
     body      = request.json or {}
     capital   = float(body.get("capital", CAPITAL))
     atr       = float(body.get("atr", 2.0))
@@ -913,35 +918,31 @@ def recalculate():
     if not price_min or not price_max:
         return jsonify({"error": "Faltan price_min y price_max"}), 400
 
-    price_range = price_max - price_min
+    price_range     = price_max - price_min
+    price_range_pct = price_range / price_min * 100
 
-    # Mismo algoritmo adaptativo que analyze_market
-    min_order_usdc = 6.0
-    max_by_cap     = int(capital / min_order_usdc)
+    # Mismo algoritmo que analyze_market_multi — sin topes fijos
+    min_gap_usdc = atr * 0.8
+    max_by_range = max(3, int(price_range / min_gap_usdc)) if min_gap_usdc > 0 else 20
+    max_by_cap   = int(capital / 6.0)
 
-    if atr_pct < 1.5:    ideal_by_atr = 10
-    elif atr_pct < 2.5:  ideal_by_atr = 8
-    elif atr_pct < 3.5:  ideal_by_atr = 6
-    else:                ideal_by_atr = 5
-
-    grid_count        = max(3, min(max_by_cap, ideal_by_atr))
+    grid_count        = max(3, min(max_by_range, max_by_cap))
     capital_per_order = round(capital / grid_count, 2)
-
-    price_range_pct   = price_range / price_min * 100
     profit_per_grid   = round(price_range_pct / grid_count, 2)
-    fills_factor      = min(0.35, max(0.1, atr_pct / 10))
-    fills_per_day     = grid_count * fills_factor
-    est_daily         = round(fills_per_day * capital_per_order * profit_per_grid / 100, 4)
-    est_monthly       = round(est_daily * 30, 2)
 
-    log(f"Recalculo: capital=${capital} → {grid_count} grids · ${capital_per_order}/orden", "info")
+    gap_per_grid  = price_range / grid_count
+    fills_per_day = round(min(grid_count * 0.4, atr * 2 / gap_per_grid), 2) if gap_per_grid > 0 else 1
+    est_daily     = round(fills_per_day * capital_per_order * profit_per_grid / 100, 4)
+    est_monthly   = round(est_daily * 30, 2)
+
+    log(f"Recalculo: capital=${capital} ATR={atr_pct}% → {grid_count} grids · ${capital_per_order}/orden", "info")
 
     return jsonify({
-        "grid_count":         grid_count,
-        "capital_per_order":  capital_per_order,
+        "grid_count":          grid_count,
+        "capital_per_order":   capital_per_order,
         "profit_per_grid_pct": profit_per_grid,
-        "est_daily":          est_daily,
-        "est_monthly":        est_monthly,
+        "est_daily":           est_daily,
+        "est_monthly":         est_monthly,
     })
 
 @app.route("/price")
