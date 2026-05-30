@@ -633,7 +633,10 @@ def recalculate():
     est_daily     = round(fills_per_day * capital_per_order * profit_per_grid / 100, 4)
     est_monthly   = round(est_daily * 30, 2)
 
-    log(f"Recalculo: capital=${capital} ATR={atr_pct}% → {grid_count} grids · ${capital_per_order}/orden", "info")
+    capital_minimo = round(grid_count * min_notional, 2)
+    capital_optimo = round(grid_count * min_notional * 2, 2)
+
+    log(f"Recalculo: capital=${capital} ATR={atr_pct}% → {grid_count} grids · ${capital_per_order}/orden · mín=${capital_minimo}", "info")
 
     return jsonify({
         "grid_count":          grid_count,
