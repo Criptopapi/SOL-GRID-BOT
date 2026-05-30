@@ -353,24 +353,36 @@ def analyze_market_multi(tf_data, capital):
     # Si el rango es el limitante  → más capital = mismo nº grids, más $/orden
 
     precio_medio     = (price_min + price_max) / 2
-    min_notional     = 5.0           # mínimo Binance en USDC
     gap_ideal        = atr_w * 0.5   # gap que captura oscilaciones reales
+
+    # ── Mínimo real por orden en Binance ──────────────────────
+    # Binance Grid Bot requiere capital suficiente para colocar
+    # TODAS las órdenes de compra por debajo del precio actual.
+    # Estimación conservadora: capital mínimo total ≈ grids × precio_medio × 0.015
+    # (equivale a tener al menos 0.015 SOL por orden a precio medio)
+    # En la práctica Binance pide ~$6-8 por orden para SOL/USDC.
+    # Usamos max($7, precio_medio × 0.008) como mínimo seguro.
+    min_notional     = max(7.0, precio_medio * 0.008)
 
     grids_por_rango  = max(2, int(price_range / gap_ideal))
     grids_por_cap    = max(2, int(capital / min_notional))
     grid_count       = max(3, min(grids_por_rango, grids_por_cap, 170))
     capital_per_order = round(capital / grid_count, 2)
 
+    # Capital mínimo recomendado para este número de grids
+    capital_minimo   = round(grid_count * min_notional, 2)
+    capital_optimo   = round(grid_count * min_notional * 2, 2)  # 2× el mínimo = holgura
+
     # Gap real después de ajuste
     best_gap         = round(price_range / grid_count, 2)
-    gap_vs_atr       = round(best_gap / atr_w, 2)  # ratio informativo
+    gap_vs_atr       = round(best_gap / atr_w, 2)
     limitante        = "capital" if grids_por_cap < grids_por_rango else "mercado"
 
-    log(f"Grids: rango/${gap_ideal:.2f}={grids_por_rango} vs capital/${min_notional}={grids_por_cap} "
-        f"→ {grid_count} grids [limitante: {limitante}] · gap=${best_gap} ({gap_vs_atr}x ATR)", "info")
+    log(f"Grids: rango/${gap_ideal:.2f}={grids_por_rango} vs capital/${min_notional:.2f}={grids_por_cap} "
+        f"→ {grid_count} grids [limitante: {limitante}] · gap=${best_gap} ({gap_vs_atr}x ATR) "
+        f"· mín. capital=${capital_minimo}", "info")
 
     # Ganancia estimada
-    # Oscilaciones diarias: ATR × 2 (sube + baja) dividido entre gap = fills/día
     oscilacion_diaria = atr_w * 2
     fills_day_final   = round(min(oscilacion_diaria / best_gap * grid_count * 0.15,
                                   grid_count * 0.4), 2)
@@ -486,6 +498,8 @@ def analyze_market_multi(tf_data, capital):
         "current_price":               round(current, 2),
         "range_pct":                   round(range_pct_final, 1),
         "rebalance_trigger":           f"Si SOL cae bajo ${sl} o sube sobre ${tp}",
+        "capital_minimo":              capital_minimo,
+        "capital_optimo":              capital_optimo,
         "timeframes":                  {"1h": score1h, "4h": score4h, "1d": score1d},
     }
 
@@ -627,6 +641,8 @@ def recalculate():
         "profit_per_grid_pct": profit_per_grid,
         "est_daily":           est_daily,
         "est_monthly":         est_monthly,
+        "capital_minimo":      capital_minimo,
+        "capital_optimo":      capital_optimo,
     })
 
 @app.route("/price")

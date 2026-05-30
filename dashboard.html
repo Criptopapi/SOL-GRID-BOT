@@ -598,11 +598,13 @@ function renderAnalysis(d){
   // Rango de inversión recomendado
   const minInv = Math.max(20, Math.round(d.grid_count * 6));
   const maxInv = minInv * 4;
+  const capitalMinimo = d.capital_minimo || minInv;
+  const capitalOptimo = d.capital_optimo || maxInv;
   document.getElementById('inv-range-label').textContent =
-    `Rango recomendado: $${minInv} – $${maxInv} USDC`;
+    `Mínimo Binance: $${capitalMinimo} · Recomendado: $${capitalOptimo} USDC`;
   document.getElementById('inv-range-hint').textContent =
-    `Recomendado: $${minInv} – $${maxInv} · Mínimo por orden: $${(minInv/d.grid_count).toFixed(0)}`;
-  document.getElementById('inv-input').value = Math.min(Math.max(60, minInv), maxInv);
+    `Binance requiere al menos $${capitalMinimo} para ${d.grid_count} grids con ese rango`;
+  document.getElementById('inv-input').value = Math.max(capitalMinimo, 60);
   updateInvestment();
 
   document.getElementById('p-notes').innerHTML =
@@ -653,7 +655,20 @@ async function updateInvestment(){
       notes.innerHTML = notes.innerHTML
         .replace(/Grids:<\/strong> \d+/, `Grids:<\/strong> ${d.grid_count}`);
     }
-    addLog(`Capital $${inv} → ${d.grid_count} grids · $${d.capital_per_order}/orden · ~$${d.est_daily}/día`, 'success');
+    const capMin = d.capital_minimo || 0;
+    if(capMin > 0 && inv < capMin){
+      addLog(`⚠ Capital $${inv} menor al mínimo requerido por Binance ($${capMin}). Aumenta el monto.`, 'warn');
+    } else {
+      addLog(`Capital $${inv} → ${d.grid_count} grids · $${d.capital_per_order}/orden · ~$${d.est_daily}/día`, 'success');
+    }
+    // Show warning in UI
+    const hint = document.getElementById('inv-range-hint');
+    if(hint && capMin > 0 && inv < capMin){
+      hint.style.color = 'var(--danger)';
+      hint.textContent = `⚠ Monto insuficiente — Binance requiere mínimo $${capMin} para ${d.grid_count} grids`;
+    } else if(hint){
+      hint.style.color = 'var(--text3)';
+    }
   } catch(e){
     // Fallback: calcular localmente si el endpoint falla
     const grids    = lastAnalysis.grid_count;
