@@ -133,6 +133,152 @@ def calc_atr(highs, lows, closes, period=14):
         trs.append(tr)
     return avg(trs)
 
+def simulate_grid_bot(prices, price_min, price_max, grid_count, capital, mode="aritmetico"):
+    """Simula un grid bot sobre precios históricos reales."""
+    if price_max <= price_min or grid_count < 2 or not prices:
+        return None
+    if mode == "geometrico":
+        ratio  = (price_max / price_min) ** (1 / grid_count)
+        levels = [price_min * (ratio ** i) for i in range(grid_count + 1)]
+    else:
+        step   = (price_max - price_min) / grid_count
+        levels = [price_min + step * i for i in range(grid_count + 1)]
+
+    fee           = 0.001
+    cap_per_order = capital / grid_count
+    p0            = prices[0]
+    state         = {}
+    for lv in levels:
+        state[lv] = "buy" if lv < p0 else "idle"
+
+    pnl    = 0.0
+    trades = 0
+    prev   = p0
+
+    for price in prices[1:]:
+        for i, lv in enumerate(levels):
+            if prev > lv > price or (prev > lv and price <= lv):
+                if state[lv] == "buy":
+                    qty = cap_per_order * (1 - fee) / lv
+                    if i + 1 < len(levels):
+                        state[levels[i+1]] = {"type":"sell","qty":qty,"cost":cap_per_order}
+                    state[lv] = "idle"
+                    trades += 1
+            elif prev < lv < price or (prev < lv and price >= lv):
+                if isinstance(state[lv], dict) and state[lv].get("type") == "sell":
+                    s    = state[lv]
+                    pnl += s["qty"] * lv * (1-fee) - s["cost"]
+                    if i - 1 >= 0:
+                        state[levels[i-1]] = "buy"
+                    state[lv] = "idle"
+                    trades += 1
+        prev = price
+
+    roi = (pnl / capital) * 100
+    return {"pnl": round(pnl,4), "roi_pct": round(roi,3), "trades": trades}
+
+def run_backtest(capital):
+    """Corre backtesting con datos reales de Binance y encuentra la configuración óptima."""
+    # Obtener 90 días de datos de 1h (2160 velas)
+    klines_1h = get_klines("1h", 168)   # 7 días recientes
+    klines_4h = get_klines("4h", 90)    # 15 días
+    klines_1d = get_klines("1d", 90)    # 90 días
+
+    if not klines_1h or not klines_4h:
+        return None
+
+    # Precios de cierre de cada temporalidad
+    prices_1h = [k["close"] for k in klines_1h]
+    prices_4h = [k["close"] for k in klines_4h]
+    prices_1d = [k["close"] for k in klines_1d] if klines_1d else prices_4h
+
+    # Soporte y resistencia real de 90 días
+    all_highs = [k["high"] for k in (klines_1d or klines_4h)]
+    all_lows  = [k["low"]  for k in (klines_1d or klines_4h)]
+    support_90d    = min(all_lows)
+    resistance_90d = max(all_highs)
+    current_price  = prices_1h[-1]
+
+    # Rangos a probar basados en el historial real
+    ranges_to_test = []
+    # Rango conservador: soporte/resistencia de 15 días
+    sup_15d = min(k["low"]  for k in klines_4h)
+    res_15d = max(k["high"] for k in klines_4h)
+    ranges_to_test.append((round(sup_15d * 0.99, 2), round(res_15d * 1.01, 2), "15d"))
+    # Rango moderado: ±10% del precio actual
+    ranges_to_test.append((round(current_price * 0.90, 2), round(current_price * 1.10, 2), "±10%"))
+    # Rango amplio: soporte/resistencia de 90 días
+    ranges_to_test.append((round(support_90d * 0.98, 2), round(resistance_90d * 1.02, 2), "90d"))
+
+    best_result = None
+    best_config = None
+    all_results = []
+
+    avg = lambda arr: sum(arr)/len(arr) if arr else 0
+    # ATR de 1h para calcular grids
+    atr_1h = avg([max(klines_1h[i]["high"]-klines_1h[i]["low"],
+                      abs(klines_1h[i]["high"]-klines_1h[i-1]["close"]),
+                      abs(klines_1h[i]["low"]-klines_1h[i-1]["close"]))
+                  for i in range(1, len(klines_1h))])
+
+    for p_min, p_max, range_name in ranges_to_test:
+        price_range  = p_max - p_min
+        precio_medio = (p_min + p_max) / 2
+        min_notional = max(7.0, precio_medio * 0.008)
+        max_by_cap   = int(capital / min_notional)
+        gap_ideal    = atr_1h * 0.5
+        max_by_range = max(2, int(price_range / gap_ideal)) if gap_ideal > 0 else 20
+
+        # Grids a evaluar: de 3 hasta el máximo posible
+        grid_options = sorted(set(range(3, min(max_by_cap, max_by_range, 50) + 1)))
+
+        for grid_count in grid_options:
+            for mode in ["aritmetico", "geometrico"]:
+                # Simular sobre datos de 1h (7 días)
+                r_1h = simulate_grid_bot(prices_1h, p_min, p_max, grid_count, capital, mode)
+                # Simular sobre datos de 4h (15 días)
+                r_4h = simulate_grid_bot(prices_4h, p_min, p_max, grid_count, capital, mode)
+
+                if not r_1h or not r_4h:
+                    continue
+
+                # Score combinado: promedio ponderado de ambas simulaciones
+                # 4h tiene más peso porque cubre más tiempo
+                combined_pnl     = r_1h["pnl"] * 0.4 + r_4h["pnl"] * 0.6
+                combined_trades  = r_1h["trades"] + r_4h["trades"]
+                capital_per_order = round(capital / grid_count, 2)
+
+                result = {
+                    "grid_count":      grid_count,
+                    "mode":            mode,
+                    "price_min":       p_min,
+                    "price_max":       p_max,
+                    "range_name":      range_name,
+                    "pnl_7d":          r_1h["pnl"],
+                    "pnl_15d":         r_4h["pnl"],
+                    "combined_pnl":    round(combined_pnl, 4),
+                    "trades_total":    combined_trades,
+                    "roi_7d":          r_1h["roi_pct"],
+                    "roi_15d":         r_4h["roi_pct"],
+                    "capital_per_order": capital_per_order,
+                }
+                all_results.append(result)
+
+                if best_result is None or combined_pnl > best_result["combined_pnl"]:
+                    best_result = result
+                    best_config = result
+
+    # Ordenar y retornar top 5
+    all_results.sort(key=lambda x: -x["combined_pnl"])
+    return {
+        "best":    best_config,
+        "top5":    all_results[:5],
+        "current": current_price,
+        "support_90d":    round(support_90d, 2),
+        "resistance_90d": round(resistance_90d, 2),
+        "atr_1h":         round(atr_1h, 2),
+    }
+
 def analyze_timeframe(klines):
     """Analiza una temporalidad y devuelve sus métricas clave."""
     if not klines or len(klines) < 20:
@@ -647,6 +793,21 @@ def recalculate():
         "capital_minimo":      capital_minimo,
         "capital_optimo":      capital_optimo,
     })
+
+@app.route("/backtest", methods=["POST"])
+def backtest():
+    body    = request.json or {}
+    capital = float(body.get("capital", CAPITAL))
+    log(f"Iniciando backtesting con capital=${capital}...", "info")
+    result = run_backtest(capital)
+    if not result:
+        return jsonify({"error": "No se pudieron obtener datos históricos"}), 500
+    best = result["best"]
+    if best:
+        log(f"Backtest completo — Mejor: {best['grid_count']} grids {best['mode']} "
+            f"rango ${best['price_min']}-${best['price_max']} | "
+            f"PNL 7d=${best['pnl_7d']} 15d=${best['pnl_15d']}", "success")
+    return jsonify(result)
 
 @app.route("/price")
 def price():

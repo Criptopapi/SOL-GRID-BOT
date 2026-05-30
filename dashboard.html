@@ -293,6 +293,19 @@ button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
   </div>
 </div>
 
+<!-- Backtest results -->
+<div id="backtest-section" class="hidden">
+  <div class="divider">Resultado del Backtesting</div>
+  <div class="card">
+    <div class="card-title">🏆 Mejor configuración encontrada en datos reales</div>
+    <div id="backtest-best"></div>
+    <div style="margin-top:12px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Top 5 configuraciones</div>
+      <div id="backtest-top5"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Log -->
 <div class="card">
   <div class="card-title">Log</div>
@@ -690,6 +703,78 @@ async function updateInvestment(){
     document.getElementById('ir-daily').textContent     = '$'+daily;
     document.getElementById('ir-monthly').textContent   = '$'+monthly;
     addLog('Usando cálculo local como respaldo', 'warn');
+  }
+}
+
+async function runBacktest(){
+  const btn = document.getElementById('btn-backtest');
+  btn.disabled = true;
+  btn.textContent = '⏳ Analizando 90 días de historia...';
+  addLog('Iniciando backtesting con datos reales de Binance...', 'info');
+
+  const capital = parseFloat(document.getElementById('inv-input').value) || 60;
+
+  try{
+    const r = await fetch(BOT_URL + '/backtest', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({capital})
+    });
+    const d = await r.json();
+    if(d.error){ addLog('Error backtest: '+d.error, 'error'); return; }
+
+    document.getElementById('backtest-section').classList.remove('hidden');
+    const best = d.best;
+
+    if(best){
+      // Actualizar parámetros recomendados con los del backtesting
+      if(document.getElementById('p-min')) document.getElementById('p-min').textContent = '$'+best.price_min;
+      if(document.getElementById('p-max')) document.getElementById('p-max').textContent = '$'+best.price_max;
+      if(document.getElementById('p-grids')) document.getElementById('p-grids').textContent = best.grid_count;
+      if(document.getElementById('p-per-order')) document.getElementById('p-per-order').textContent = '$'+best.capital_per_order;
+      const modeEl = document.getElementById('p-mode');
+      if(modeEl) modeEl.innerHTML = best.mode === 'geometrico'
+        ? '<span class="mode-badge geometrico">GEOMÉTRICO</span>'
+        : '<span class="mode-badge aritmetico">ARITMÉTICO</span>';
+
+      document.getElementById('backtest-best').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+          <div class="metric"><div class="lbl">Grids óptimos</div><div class="val green">${best.grid_count}</div></div>
+          <div class="metric"><div class="lbl">Modo</div><div class="val purple">${best.mode}</div></div>
+          <div class="metric"><div class="lbl">Capital/orden</div><div class="val amber">$${best.capital_per_order}</div></div>
+          <div class="metric"><div class="lbl">PNL simulado 7d</div><div class="val ${best.pnl_7d>=0?'green':'red'}">$${best.pnl_7d}</div></div>
+          <div class="metric"><div class="lbl">PNL simulado 15d</div><div class="val ${best.pnl_15d>=0?'green':'red'}">$${best.pnl_15d}</div></div>
+          <div class="metric"><div class="lbl">Operaciones</div><div class="val white">${best.trades_total}</div></div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--r);padding:10px;font-size:12px;color:var(--text2)">
+          📋 <strong style="color:var(--text)">Parámetros actualizados arriba.</strong>
+          Rango óptimo: <strong style="color:var(--accent)">$${best.price_min} – $${best.price_max}</strong>
+          (${best.range_name}) · ROI 7d: <strong>${best.roi_7d}%</strong> · ROI 15d: <strong>${best.roi_15d}%</strong>
+        </div>`;
+
+      addLog(`✓ Backtest: ${best.grid_count} grids ${best.mode} $${best.price_min}-$${best.price_max} | PNL 7d=$${best.pnl_7d} 15d=$${best.pnl_15d}`, 'success');
+    }
+
+    // Top 5
+    const top5 = d.top5 || [];
+    document.getElementById('backtest-top5').innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:11px">
+        <tr style="color:var(--text3)"><th style="text-align:left;padding:4px 8px">Grids</th><th style="text-align:left;padding:4px 8px">Modo</th><th style="text-align:left;padding:4px 8px">Rango</th><th style="text-align:right;padding:4px 8px">PNL 7d</th><th style="text-align:right;padding:4px 8px">PNL 15d</th><th style="text-align:right;padding:4px 8px">Trades</th></tr>
+        ${top5.map((r,i) => `<tr style="background:${i===0?'rgba(0,212,170,0.05)':''}">
+          <td style="padding:5px 8px;color:var(--accent)">${r.grid_count}</td>
+          <td style="padding:5px 8px;color:var(--text2)">${r.mode}</td>
+          <td style="padding:5px 8px;color:var(--text3)">$${r.price_min}-$${r.price_max}</td>
+          <td style="padding:5px 8px;text-align:right;color:${r.pnl_7d>=0?'var(--accent)':'var(--danger)'}">$${r.pnl_7d}</td>
+          <td style="padding:5px 8px;text-align:right;color:${r.pnl_15d>=0?'var(--accent)':'var(--danger)'}">$${r.pnl_15d}</td>
+          <td style="padding:5px 8px;text-align:right;color:var(--text2)">${r.trades_total}</td>
+        </tr>`).join('')}
+      </table>`;
+
+  }catch(e){
+    addLog('Error en backtest: '+e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📊 BACKTESTING — Encontrar configuración óptima';
   }
 }
 
