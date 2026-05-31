@@ -293,6 +293,17 @@ button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
   </div>
 </div>
 
+<!-- Controles -->
+<div class="card">
+  <div class="card-title">Controles</div>
+  <button class="btn-refresh" onclick="fetchState()">↺ Actualizar precio</button>
+  <button id="btn-backtest" style="padding:10px 16px;background:rgba(245,158,11,0.15);color:var(--amber);
+    border:1px solid rgba(245,158,11,0.3);border-radius:var(--r);cursor:pointer;font-weight:700;
+    font-size:13px;width:100%;margin-bottom:8px;transition:all .2s" onclick="runBacktest()">
+    📊 BACKTESTING — Encontrar configuración óptima con datos reales
+  </button>
+</div>
+
 <!-- Backtest results -->
 <div id="backtest-section" class="hidden">
   <div class="divider">Resultado del Backtesting</div>
