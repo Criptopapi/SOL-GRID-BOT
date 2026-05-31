@@ -296,7 +296,7 @@ button{padding:10px 16px;border:none;border-radius:var(--r);cursor:pointer;font-
 <!-- Controles -->
 <div class="card">
   <div class="card-title">Controles</div>
-  <button class="btn-refresh" onclick="fetchState()">↺ Actualizar precio</button>
+  <button class="btn-refresh" onclick="fetchPrice()">↺ Actualizar precio</button>
   <button id="btn-backtest" style="padding:10px 16px;background:rgba(245,158,11,0.15);color:var(--amber);
     border:1px solid rgba(245,158,11,0.3);border-radius:var(--r);cursor:pointer;font-weight:700;
     font-size:13px;width:100%;margin-bottom:8px;transition:all .2s" onclick="runBacktest()">
@@ -334,6 +334,17 @@ function addLog(msg, level='info'){
   d.innerHTML = `<span class="lt">${new Date().toLocaleTimeString()}</span><span class="lm">${msg}</span>`;
   c.appendChild(d);
   c.scrollTop = c.scrollHeight;
+}
+
+async function fetchPrice(){
+  try{
+    const r = await fetch(BOT_URL + '/price');
+    const d = await r.json();
+    if(d.price){
+      document.getElementById('price').textContent = '$' + parseFloat(d.price).toFixed(2);
+      document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+    }
+  }catch(e){ addLog('Error obteniendo precio', 'error'); }
 }
 
 async function fetchState(){
@@ -789,10 +800,9 @@ async function runBacktest(){
   }
 }
 
-fetchState();
-setInterval(fetchState, 15000);
+fetchPrice();
+setInterval(fetchPrice, 15000);
 addLog('Dashboard v3 listo — Ingresa tu bot activo o analiza el mercado', 'success');
 </script>
 </body>
 </html>
-
